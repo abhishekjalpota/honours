@@ -19,13 +19,18 @@
 # Diversity stats
 
 devtools::install_github("rhysnewell/fast-nnt", subdir = "fastnntr")
+remotes::install_github("https://github.com/eilishmcmaster/fastDiversity")
+BiocManager::install("ggtree")
+remotes::install_github("KlausVigo/tanggle")
+remotes::install_github("jokergoo/ComplexHeatmap")
+remotes::install_github('https://github.com/jasongbragg/RRtools')
 
 library(fastnntr) # devtools::install_github("rhysnewell/fast-nnt", subdir = "fastnntr")
 library(fastDiversity) #remotes::install_github("https://github.com/eilishmcmaster/fastDiversity")
 library(tanggle) # git install
 library(adegenet)
 library(circlize)
-library(ComplexHeatmap)
+library(ComplexHeatmap) #git install? 
 library(data.table)
 library(dplyr)
 library(ggforce)
