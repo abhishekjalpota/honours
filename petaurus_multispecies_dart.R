@@ -18,12 +18,12 @@
 
 # Diversity stats
 
-devtools::install_github("rhysnewell/fast-nnt", subdir = "fastnntr")
-remotes::install_github("https://github.com/eilishmcmaster/fastDiversity")
-BiocManager::install("ggtree")
-remotes::install_github("KlausVigo/tanggle")
-remotes::install_github("jokergoo/ComplexHeatmap")
-remotes::install_github('https://github.com/jasongbragg/RRtools')
+# devtools::install_github("rhysnewell/fast-nnt", subdir = "fastnntr")
+# remotes::install_github("https://github.com/eilishmcmaster/fastDiversity")
+# BiocManager::install("ggtree")
+# remotes::install_github("KlausVigo/tanggle")
+# remotes::install_github("jokergoo/ComplexHeatmap")
+# remotes::install_github('https://github.com/jasongbragg/RRtools')
 
 library(fastnntr) # devtools::install_github("rhysnewell/fast-nnt", subdir = "fastnntr")
 library(fastDiversity) #remotes::install_github("https://github.com/eilishmcmaster/fastDiversity")
@@ -43,6 +43,7 @@ library(openxlsx)
 library(RColorBrewer)
 library(RRtools) # remotes::install_github('https://github.com/jasongbragg/RRtools')
 library(scales)
+library(SNPRelate)
 library(stringr)
 library(tidyr)
 library(vegan)
@@ -54,23 +55,36 @@ topskip   <- 6
 nmetavar  <- 18
 basedir <- "" #main directory
 species <- "petaurus" #species name
-dataset <- "REPORTID" #dart order
+dataset <- "DPetas26-11610" #dart order
 missingness <- 0.3
+
+setwd('/Users/abhishek/honours')
 
 d1        <- new.read.dart.xls.onerow(basedir,species,dataset,topskip, nmetavar, euchits=FALSE)
 hist(colMeans(is.na(d1$gt)))  ### histogram of missingness of each locus before filtering
+
+d1$sample_names[which(!d1$sample_names %in% meta$sample_names)] # samples in dart not in meta
 
 meta      <- read.meta.data.full.analyses.df(d1, basedir, species, dataset)
 
 d2        <- dart.meta.data.merge(d1, meta) 
 
-d3        <- remove.poor.quality.snps(d2, min_repro=0.96, max_missing=0.5)%>% remove.fixed.snps()
+# # example make dms with only one species
+# d2 <- remove.by.list(d2, d2$sample_names[which(d2$meta$analyses[,'sp']=='breviceps')])
+# length(d2$sample_names)
+
+# up to 80% can be missing
+d3        <- remove.poor.quality.snps(d2, min_repro=0.96, max_missing=0.8) %>% remove.fixed.snps()
 
 d4        <- sample.one.snp.per.locus.random(d3, seed=12345) 
 
 
 hist(colMeans(is.na(d1$gt)))  ### histogram of missingness of each locus before filtering
-d5 <- remove.by.missingness(d4, 0.6) # remove samples with high missingness
+
+d5 <- remove.by.missingness(d4, 0.8) # remove samples with high missingness
+length(d4$sample_names)
+length(d5$sample_names)
+# odd_samples %in% d5$sample_names
 
 dms <- d5
 
@@ -92,7 +106,7 @@ sp_shapes <- setNames(1:length(levels(species_levels)), levels(species_levels)) 
 site_levels <- factor(m2$site)  # Use site column 
 site_colours <- named_list_maker(levels(site_levels), palette = 'Spectral',11)
 site_shapes <- setNames(1:length(levels(site_levels)), levels(site_levels))  # Assign shapes
-
+ 
 #### RAW GENOTYPE HEATMAP ####
 submat <- dms$gt[,sample(1:ncol(dms$gt), 1000, replace = FALSE)] %>% as.matrix
 submat[is.na(submat)] <- -9
@@ -121,9 +135,10 @@ draw(gt)
 dev.off()
 
 #### KINSHIP ####
-kin <- individual_kinship_by_pop(dms, basedir, species, dataset, dms$meta$analyses[,"sp"], maf=0.05, mis=0.1, as_bigmat=TRUE)
+kin <- individual_kinship_by_pop(dms, basedir, species, dataset, dms$meta$analyses[,"sp"],
+                                 maf=0.05, mis=0.1, as_bigmat=TRUE)
 
-adj <- kin > 1/2^(3/2)
+adj <- kin > 1/2^(3/2) # kinship for clones 
 diag(adj) <- FALSE
 g <- graph_from_adjacency_matrix(adj, mode = "undirected")
 components <- components(g)
@@ -162,7 +177,7 @@ dms_no_clones <- remove.by.list(dms, clones_dereplicated)
 
 ##### KINSHIP HEATMAP ####
 
-col_fun <- colorRamp2(c(0,0.45,0.5), c("grey95", "red",'black')) 
+col_fun <- colorRamp2(c(0,0.45,0.5), c("grey95", "red",'black'))
 
 kinship_df <- kin %>% as.data.frame()
 kinship_df$sample <- rownames(kinship_df)
@@ -193,23 +208,23 @@ sp_ann2 <- rowAnnotation(Sp = hm_sites2$sp, col = list(Sp = sp_colours),
                          annotation_name_gp = gpar(fontsize = 0))
 
 
-hma <- Heatmap( as.matrix(hm_sites2[ , c(1:(nrow(hm_sites2)))]), 
-                col=col_fun, 
+hma <- Heatmap( as.matrix(hm_sites2[ , c(1:(nrow(hm_sites2)))]),
+                col=col_fun,
                 bottom_annotation = sp_ann, #c(site_ann, sp_ann),
                 right_annotation = sp_ann2, #c(site_ann2, sp_ann2),
                 name = "Kin", #title of legend
                 row_names_gp = gpar(fontsize = 6),
                 column_names_gp = gpar(fontsize = 6),
                 row_names_max_width = unit(15, "cm"),
-                border_gp = gpar(col = "black", lty = 1),
-                column_order=order(hm_sites2$sp),
-                row_order=order(hm_sites2$sp)
+                border_gp = gpar(col = "black", lty = 1)
+                # column_order=order(hm_sites2$sp),
+                # row_order=order(hm_sites2$sp)
 )
 
 draw(hma, merge_legend = TRUE)
 
 # Set up the PNG device
-png('petaurus/outputs/petaurus_kin.png', width = 18, height = 14, units = 'cm', res = 300)
+png('petaurus/outputs/petaurus_kin.png', width = 30, height = 30, units = 'cm', res = 300)
 
 # Draw the plot
 draw(hma, merge_legend = TRUE)
@@ -220,14 +235,23 @@ dev.off()
 
 #### PCA ####
 ##### PCA OF ALL SAMPLES ####
-dms_maf1 <- remove.by.maf(dms_no_clones, 0.01) # if there are a lot of loci, minor allele filter is a good way to reduce them while keeping information esp. in PCA
+
+# dms_maf1 <- remove.by.maf(dms_no_clones, 0.01) # if there are a lot of loci, minor allele filter is a good way to reduce them while keeping information esp. in PCA
+
+dms_pca <- remove.poor.quality.snps(dms_no_clones, min_repro=0.96, max_missing=0.3) %>% 
+  remove.by.maf(., 0.05) %>%
+  remove.loci.randomly(.,2000)
+
+# if there are a lot of loci, minor allele filter is a good way to reduce them while keeping information esp. in PCA
 # duplicate clones should be excluded from PCA
+length(dms_pca$locus_names)
 
 # Convert filtered genotypes to genlight object
-gen_d5 <- new("genlight", dms_maf1$gt)
+gen_d5 <- new("genlight", dms_pca$gt)
 
 # Perform PCA
-gen_pca <- glPca(gen_d5, parallel = TRUE, nf = 7)
+gen_pca <- glPca(gen_d5, parallel = TRUE, nf = 7) #can take a while
+
 
 # Extract PCA scores
 g_pca_df <- gen_pca[["scores"]]
@@ -241,7 +265,6 @@ g_pca_df2 <- merge(g_pca_df, d2$meta$analyses,
 pcnames <- paste0(colnames(g_pca_df), " (", 
                   round(gen_pca[["eig"]][1:6] / sum(gen_pca[["eig"]]) * 100, 2), 
                   "%)")
-
 
 
 # Common PCA plot elements
@@ -259,8 +282,8 @@ base_pca_plot <- function(data, x, y, xlabel, ylabel) {
       axis.title = element_text(size = 10),
       axis.text = element_text(size = 8)
     ) +
-    scale_colour_manual(values = site_colours) +
-    scale_shape_manual(values = site_shapes)
+    scale_colour_manual(values = sp_colours) +
+    scale_shape_manual(values = sp_shapes)
 }
 
 # PCA Plot 1: PC1 vs PC2 (with convex hull)
@@ -292,7 +315,44 @@ ggsave("petaurus/outputs/petaurus_pca.png",
        units = "cm", dpi = 300, bg = 'white')
 
 
-#### SPLITSTREE ####
+
+#### DIVERSITY STATS #####
+
+stats_0.3 <- fastDiversity::faststats(gt = dms_no_clones$gt, # diversity stats
+                                      genetic_group_variable = dms_no_clones$meta$analyses[,'sp'],
+                                      site_variable = dms_no_clones$meta$analyses[,'site'], 
+                                      # run_HWE_test = TRUE, 
+                                      # get_CI_loci_resampling = TRUE,
+                                      # loci_resample_n = 1000, 
+                                      # boots = 1000, 
+                                      max_missingness = 0.3, maf=0.05)
+
+write.xlsx(stats_0.3, paste0(species,'/outputs/petaurus_stats.xlsx'))
+
+# the individual observed heterozygosity
+m2$ind_ho <- fastDiversity::individual_Ho(dms$gt, 
+                                          genetic_group_variable = dms$meta$analyses[,'sp'],
+                                          maf=0.05, max_missingness = 0.3)
+
+
+ind_miss <- rowMeans(is.na(dms$gt))  # the missing proportion of individuals
+m2$miss <- ind_miss[m2$sample]
+
+library(ggplot2)
+
+ggplot(m2, aes(x=ind_ho, fill=sp))+
+  geom_histogram(bins=50)+
+  facet_wrap(~sp)+
+  theme_few()
+
+
+ggplot(m2, aes(x=miss, y=ind_ho, color=sp, label=sample))+
+  geom_point()+
+  theme_few()+
+  ggrepel::geom_text_repel()
+
+
+ #### SPLITSTREE ####
 gt_dist <- dist(dms$gt, method='euclidean') %>% as.matrix #distance matrix
 
 Nnet <- fastnntr::run_neighbornet_networkx(gt_dist) #phylogenetic network
@@ -319,16 +379,19 @@ hull <- x %>% group_by(sp) %>%
   slice(chull(x, y)) %>%
   filter(!is.na(sp))
 
+
+
+
 # Create the plot with species-based colors and shapes
 splitstree_plot <- ggplot(Nnet, aes(x = x, y = y)) +
   geom_shape(data = hull, alpha = 0.2, expand = 0.01, radius = 0.01,
              aes(fill = sp), color = 'transparent') +
   geom_splitnet(layout = "slanted", size = 0.2) +
-  geom_point(data = x_tips, aes(x = x, y = y, colour = sp, shape = sp), size = 1) +
+  geom_point(data = x_tips, aes(x = x, y = y, colour = sp_original, shape = sp_original), size = 1) +
   scale_fill_manual(values = sp_colours, na.translate = FALSE, guide = "none") +    
   scale_colour_manual(values = sp_colours, na.translate = FALSE) +    
   scale_shape_manual(values = sp_shapes) +            
-  geom_tiplab2(size = 3, hjust = -0.15, fontface = "italic", lineheight = 0.8) + #angle = 0, 
+  geom_tiplab2(size = 2, hjust = -0.15, fontface = "italic", lineheight = 0.8) + #angle = 0, 
   theme_void() +
   expand_limits(x = c(min(x_tips$x) - 0.2 * net_x_axis, max(x_tips$x) + 0.3 * net_x_axis),
                 y = c(min(x_tips$y) - 0.1 * net_y_axis, max(x_tips$y) + 0.1 * net_y_axis)) +
@@ -341,8 +404,8 @@ splitstree_plot <- ggplot(Nnet, aes(x = x, y = y)) +
 splitstree_plot
 
 # Save the plot
-ggsave(paste0(species,'/outputs/petaurus_splitstree.pdf'), 
-       splitstree_plot, width=20, height=20, units='cm', dpi=300)
+ggsave(paste0(species,'/outputs/petaurus_splitstree_original.pdf'), 
+       splitstree_plot, width=30, height=30, units='cm', dpi=300)
 
 # Display the plot
 pca_splits_plot <- ggarrange(all3_pca_plots, splitstree_plot, nrow=2, labels=c("","D"), font.label=list(face="plain"))
@@ -351,34 +414,67 @@ pca_splits_plot <- ggarrange(all3_pca_plots, splitstree_plot, nrow=2, labels=c("
 ggsave(paste0(species,'/outputs/petaurus_pca_splitstree.png'), 
        pca_splits_plot, width=22, height=18, units='cm', dpi=300, bg='white')
 
-#### DIVERSITY STATS #####
 
-stats_0.3 <- fastDiversity::faststats(gt = dms_no_clones$gt, # diversity stats
-                                      genetic_group_variable = dms_no_clones$meta$analyses[,'sp'],
-                                      site_variable = dms_no_clones$meta$analyses[,'site'], 
-                                      run_HWE_test = TRUE, 
-                                      get_CI_loci_resampling = TRUE,
-                                      loci_resample_n = 1000, 
-                                      boots = 1000, 
-                                      max_missingness = 0.3, maf=0.05)
 
-write.xlsx(stats_0.3, paste0(species,'/outputs/petaurus_stats.xlsx'))
+#### splitstree missing ####
 
-m2$ind_ho <- fastDiversity::individual_Ho(dms$gt, genetic_group_variable = dms$meta$analyses[,'sp'],
-                                          maf=0.05, max_missingness = 0.3)
 
-ggplot(m2, aes(x=ind_ho, fill=sp))+
-  geom_hist()+
-  facet_wrap(~sp)+
-  theme_few()
+x_tips$miss <- ind_miss[x_tips$sample]
+
+# 
+odd_samples <- c('WGM244_203', 'WGM244_120', 'WGM244_121', 'WGM244_186')
+
+ind_miss[odd_samples]
+summary(ind_miss)
+hist(ind_miss)
+
+# Create the plot with species-based colors and shapes
+splitstree_plot_missing <- ggplot(Nnet, aes(x = x, y = y)) +
+  geom_shape(data = hull, alpha = 0.2, expand = 0.01, radius = 0.01,
+             aes(fill = sp), color = 'transparent') +
+  geom_splitnet(layout = "slanted", size = 0.2) +
+  geom_point(data = x_tips, aes(x = x, y = y, colour = miss), size = 1) +
+  # scale_fill_manual(values = sp_colours, na.translate = FALSE, guide = "none") +    
+  # scale_colour_manual(values = sp_colours, na.translate = FALSE) +    
+  # scale_shape_manual(values = sp_shapes) +            
+  geom_tiplab2(size = 2, hjust = -0.15, fontface = "italic", lineheight = 0.8) + #angle = 0, 
+  theme_void() +
+  expand_limits(x = c(min(x_tips$x) - 0.2 * net_x_axis, max(x_tips$x) + 0.3 * net_x_axis),
+                y = c(min(x_tips$y) - 0.1 * net_y_axis, max(x_tips$y) + 0.1 * net_y_axis)) +
+  theme(
+    legend.text = element_text(face = "plain"),
+    legend.key.size = unit(2, 'lines')
+  ) +
+  coord_fixed()
+
+
+splitstree_plot_missing
+
+# Save the plot
+ggsave(paste0(species,'/outputs/petaurus_splitstree_missing.pdf'), 
+       splitstree_plot_missing, width=30, height=30, units='cm', dpi=300)
+
+
+
 
 #### FST ANALYSIS ####
 # Remove samples with NA in site column (not species, since all are Grevillea petaurus)
 # Filter sites with n < 2
-sitepop_freq <- as.data.frame(table(dms_no_clones$meta$analyses[,'site']))
+
+dms_no_clones <- dms #TEMPORARY!!! until you do kinship
+
+site_df <- dms_no_clones$meta$analyses[,'site'] %>% as.data.frame()
+site_df[site_df==0] <- NA
+
+sitepop_freq <- as.data.frame(table(site_df))
 not_n1_sites <- as.vector(sitepop_freq[sitepop_freq$Freq < 3, 1])
 keep_samples <- dms_no_clones$sample_names[which(dms_no_clones$meta$analyses[,'site'] %in% sitepop_freq[sitepop_freq$Freq >= 3, 1])]
+
 fst_dms <- remove.by.list(dms_no_clones, keep_samples)
+
+length(fst_dms$sample_names)
+table(fst_dms$meta$site)
+
 
 # Check filtered data
 print("After filtering sites with n < 2:")
@@ -387,7 +483,9 @@ print(table(fst_dms$meta$analyses[,'site']))
 
 # Calculate FST and geographic distance
 gds_file <- dart2gds(fst_dms, basedir, species, dataset)
-pFst <- population.pw.Fst(fst_dms, fst_dms$meta$analyses[,'site'], basedir, species, dataset, maf_val=0.05, miss_val=0.3)
+pFst <- population.pw.Fst(fst_dms, fst_dms$meta$analyses[,'site'], basedir, species, dataset,
+                          maf_val=0.05, miss_val=0.3)
+
 pS <- population.pw.spatial.dist(fst_dms, fst_dms$meta$analyses[,'site'])
 
 # Make self comparisons NA
@@ -418,6 +516,8 @@ dist_long <- as.data.frame(as.table(pS$S))
 Fst_sig$Geo_dist <- dist_long$Freq
 Fst_sig$Geo_dist2 <- Fst_sig$Geo_dist / 1000  # Convert to km
 
+
+# colour by pairwise groupings
 # Mantel plot
 fstp1 <- ggplot(Fst_sig, aes(x = Geo_dist2, y = Fst)) +
   geom_point(size = 1, alpha = 0.3) +
@@ -431,6 +531,7 @@ fstp1 <- ggplot(Fst_sig, aes(x = Geo_dist2, y = Fst)) +
 
 # Display and save plot
 print(fstp1)
+
 ggsave("petaurus/outputs/petaurus_fst_mantel.png", 
        fstp1, width = 15, height = 10, units = "cm", dpi = 600)
 
@@ -533,7 +634,7 @@ draw(geo + gene, ht_gap = -gene_width, merge_legend=TRUE)
 
 # Set the file name and parameters
 filename <- "petaurus/outputs/petaurus_fst.png"
-width <- 20
+width <- 24
 height <- 20
 dpi <- 600
 units <- "cm"
@@ -560,7 +661,8 @@ fam <- data.frame(fam = 1:length(dms$sample_names), ind = dms$sample_names,
                   sex = rep(0, length(dms$sample_names)),
                   pheno = rep(-9, length(dms$sample_names)), stringsAsFactors = FALSE)
 
-write.table(fam, paste0(out_dir_species,'/ADMIXTURE_',species, "_", dataset,"_bed.fam"), sep = "\t", 
+write.table(fam, 
+            paste0(out_dir_species,'/ADMIXTURE_',species, "_", dataset,"_bed.fam"), sep = "\t", 
             quote = FALSE, row.names = FALSE, col.names = FALSE)
 
 snpgdsClose(igds)
@@ -587,3 +689,6 @@ dart2svdquartets(dms_raxml, basedir, species, paste0(dataset,'_raxml'), add_pop=
 genotype_matrix <- read.nexus.data('petaurus/popgen/raw_SNPFilt_1SNPperClone/svdq/petaurus_REPORTID_raxml.nex')
 dnabin <- ape::nexus2DNAbin(genotype_matrix)
 ape::write.FASTA(dnabin, file='petaurus/popgen/raw_SNPFilt_1SNPperClone/svdq/petaurus_REPORTID_raxml.fasta')
+
+# cipres
+# galaxy
