@@ -315,6 +315,42 @@ ggsave("petaurus/outputs/petaurus_pca.png",
        units = "cm", dpi = 300, bg = 'white')
 
 
+#### DAPC ####
+# Find optimal clusters for up to k = 20
+grp <- find.clusters(gen_d5, max.n.clust = 20) # retained 90 PCs
+                                               # chose k=3 clusters 
+
+# table(pop(gen_d5), grp$grp)
+
+# Run the DAPC 
+dapc1 <- dapc(gen_d5, grp$grp) #retained 150 PCs, 2 discriminant functions 
+dapc2 <- dapc(gen_d5, grp$grp) #retained 100 PCs, 2 discriminant functions
+dapc3 <- dapc(gen_d5, grp$grp) #retained 200 PCs, 2 discriminant functions 
+dapc4 <- dapc(gen_d5, grp$grp) #retained 250 PCs, 2 discriminant functions
+
+dapc1
+
+# Scatterplot
+scatter(dapc1, posi.da = "topright")
+
+# Trying to label by metadata species 
+testing <- read_xlsx('/Users/abhishek/honours/petaurus/meta/petaurus_DPetas26-11610_meta.xlsx')
+
+# Reorder metadata to match genlight individuals
+testing2 <- testing[match(indNames(gen_d5), testing$sample), ]
+
+# Verify alignment
+all(indNames(gen_d5) == testing2$sample)
+
+# Create grouping factor
+pop_data <- factor(testing2$sp)
+
+# Colours
+custom_colours <- adegenet::seasun(nlevels(pop_data))
+
+# Plot
+scatter(dapc1, grp = pop_data, posi.da = "topright")
+
 
 #### DIVERSITY STATS #####
 
@@ -649,11 +685,11 @@ draw(geo + gene, ht_gap = -gene_width)
 dev.off()
 
 #### MAKE ADMIXTURE INPUT FILES ####
-igds_file <- dart2gds(dms, paste0(out_dir_species,'/ADMIXTURE_'), species, dataset)
+igds_file <- dart2gds(dms, '', species, dataset)
 
 igds <- snpgdsOpen(igds_file)
 
-snpgdsGDS2BED(igds, bed.fn=paste0(out_dir_species,'/ADMIXTURE_',species, "_", dataset,"_bed"))
+snpgdsGDS2BED(igds, bed.fn=paste0('',species, "_", dataset,"_bed"))
 
 
 fam <- data.frame(fam = 1:length(dms$sample_names), ind = dms$sample_names, 
@@ -662,7 +698,7 @@ fam <- data.frame(fam = 1:length(dms$sample_names), ind = dms$sample_names,
                   pheno = rep(-9, length(dms$sample_names)), stringsAsFactors = FALSE)
 
 write.table(fam, 
-            paste0(out_dir_species,'/ADMIXTURE_',species, "_", dataset,"_bed.fam"), sep = "\t", 
+            paste0('',species, "_", dataset,"_bed.fam"), sep = "\t", 
             quote = FALSE, row.names = FALSE, col.names = FALSE)
 
 snpgdsClose(igds)
