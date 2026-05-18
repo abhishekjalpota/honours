@@ -329,15 +329,16 @@ dapc3 <- dapc(gen_d5, grp$grp) #retained 200 PCs, 2 discriminant functions
 dapc4 <- dapc(gen_d5, grp$grp) #retained 250 PCs, 2 discriminant functions
 
 dapc1
+dapc2
 
 # Scatterplot
-scatter(dapc1, posi.da = "topright")
+scatter(dapc1, posi.da = "bottomleft")
 
 # Trying to label by metadata species 
-testing <- read_xlsx('/Users/abhishek/honours/petaurus/meta/petaurus_DPetas26-11610_meta.xlsx')
+testingmeta <- read_xlsx('/Users/abhishek/honours/petaurus/meta/petaurus_DPetas26-11610_meta.xlsx')
 
 # Reorder metadata to match genlight individuals
-testing2 <- testing[match(indNames(gen_d5), testing$sample), ]
+testing2 <- testingmeta[match(indNames(gen_d5), testingmeta$sample), ]
 
 # Verify alignment
 all(indNames(gen_d5) == testing2$sample)
@@ -349,8 +350,29 @@ pop_data <- factor(testing2$sp)
 custom_colours <- adegenet::seasun(nlevels(pop_data))
 
 # Plot
-scatter(dapc1, grp = pop_data, posi.da = "topright")
+scatter(dapc1, grp = pop_data, posi.da = "bottomleft")
 
+#### AMOVA ####
+library(poppr)
+
+# Reorder metadata to match genlight
+testingmeta <- testingmeta[match(indNames(gen_d5), testingmeta$sample), ]
+all(indNames(gen_d5) == testingmeta$sample)
+
+# Assign populations to genlight object for hierarchy 
+strata(gen_d5) <- data.frame(
+  popspecies = as.factor(testingmeta$sp), 
+  popbioregion = as.factor(testingmeta$bioregion)
+) 
+
+# Run AMOVA
+amova_result <- poppr.amova(gen_d5, ~popspecies/popbioregion)
+amova_result
+
+# Test significance
+# amova_sig <- randtest(amova_result, nrepet = 999) #taking rly long 
+amova_sig_quick <- randtest(amova_result, nrepet = 99)
+amova_sig_quick
 
 #### DIVERSITY STATS #####
 
@@ -705,7 +727,7 @@ snpgdsClose(igds)
 
 # #### LINUX COMMAND ADMIXTURE ####
 # for K in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; \
-# do admixture/dist/admixture_linux-1.3.0/admixture --cv=20 ADMIXTURE_*.bed $K -j20 | tee ADMIXTURE_log${K}.out; done
+# do admixture/dist/admixture_macosx-1.3.0/admixture --cv=20 petaurus_DPetas26-11610_bed.bed $K -j20 | tee ADMIXTURE_log${K}.out; done
 # grep -h CV ADMIXTURE_log*.out > ADMIXTURE_CV_results.tsv
 
 #### RAXML ################################################################################
