@@ -350,7 +350,7 @@ pop_data <- factor(testing2$sp)
 custom_colours <- adegenet::seasun(nlevels(pop_data))
 
 # Plot
-scatter(dapc1, grp = pop_data, posi.da = "bottomleft")
+scatter(dapc1, grp = pop_data, posi.da = "topright")
 
 #### AMOVA ####
 library(poppr)
@@ -392,6 +392,10 @@ m2$ind_ho <- fastDiversity::individual_Ho(dms$gt,
                                           genetic_group_variable = dms$meta$analyses[,'sp'],
                                           maf=0.05, max_missingness = 0.3)
 
+ind_ho <- fastDiversity::individual_Ho(dms$gt, 
+                                          genetic_group_variable = dms$meta$analyses[,'sp'],
+                                          maf=0.05, max_missingness = 0.3)
+ind_ho[odd_samples]
 
 ind_miss <- rowMeans(is.na(dms$gt))  # the missing proportion of individuals
 m2$miss <- ind_miss[m2$sample]
@@ -730,8 +734,106 @@ snpgdsClose(igds)
 # do admixture/dist/admixture_macosx-1.3.0/admixture --cv=20 petaurus_DPetas26-11610_bed.bed $K -j20 | tee ADMIXTURE_log${K}.out; done
 # grep -h CV ADMIXTURE_log*.out > ADMIXTURE_CV_results.tsv
 
+# Plot cross validation error for most optimal k value
+library(data.table)
+library(ggplot2)
+library(stringr)
+library(ggthemes)
+
+
+cv <- fread("/Users/abhishek/honours/petaurus/outputs/ADMIXTURE_CV_results.tsv")
+
+cv$K <- str_extract(cv$V3, "\\d+") |> as.numeric()
+
+cv$CV_error <- cv$V4
+
+head(cv)
+
+cv_plot <- ggplot(cv, aes(x = as.numeric(K), y = CV_error)) +
+  geom_line() +
+  geom_point(size = 2) +
+  scale_x_continuous(
+    breaks = seq(min(cv$K), max(cv$K), by = 1)
+  ) +
+  labs(
+    x = "Number of clusters (K)",
+    y = "Cross-validation error",
+    title = "ADMIXTURE CV error"
+  ) +
+  theme_bw()
+cv_plot
+
+# ancestry prediction for all individuals 
+
+q_file <- "/Users/abhishek/honours/petaurus/outputs/petaurus_DPetas26-11610_bed.3.Q"
+fam_file <- "/Users/abhishek/honours/petaurus/outputs/petaurus_DPetas26-11610_bed.fam"
+
+opt_k <-3   # set K value here
+
+admix_P <- read.table(q_file)
+admix_fam <- read.table(fam_file, sep = "\t")
+
+admix_P$sample <- admix_fam$V2
+
+# merge with metadata (meta must exist already)
+admix_P <- merge(admix_P, m2[,c('sample','sp')], by = "sample")
+
+# convert to long format for plotting
+admix_P2 <- admix_P %>%
+  pivot_longer(
+    cols = -c("sample","sp"),
+    names_to = "population",
+    values_to = "Q"
+  ) %>% filter(Q>0.00001)
+admix_P2$population <- gsub("V","", admix_P2$population) %>% as.numeric
+
+
+admix_colours_df <- admix_P2 %>%
+  group_by(sp, population) %>%
+  summarise(mean_Q = mean(Q), .groups = "drop") %>%
+  arrange(desc(mean_Q)) %>%
+  group_by(sp) %>%
+  slice_max(mean_Q, n = 1) %>% filter(mean_Q>0.90)
+
+# admix_colours <- sp_colours[admix_colours_df$sp]
+# names(admix_colours) <- admix_colours_df$population
+
+admix_P2$population <- factor(
+  admix_P2$population,
+  levels = unique(admix_P2$population[order(nchar(as.character(admix_P2$population)))])
+)
+
+plot_admix <- ggplot(admix_P2, aes(x = sample, y = Q, fill = factor(population))) +
+  geom_bar(position = "stack", stat = "identity", width = 1) +
+  theme_few() +
+  labs(
+    y = "ADMIXTURE Ancestry",
+    fill = "Source\npopulation"
+  ) +
+  facet_grid(
+    ~ factor(sp),#, levels = site_order
+    scales = "free_x",
+    space = "free_x"
+  ) +
+  theme(
+    axis.text.x = element_text(size=5, angle=90, vjust=0.5),
+    axis.title.x = element_blank(),
+    strip.text.x = element_text(angle=90, face='italic', hjust=0.01, size=10),
+    strip.background = element_blank(),
+    panel.spacing = unit(0.07, "lines"),
+    legend.position = "none",
+    legend.text = element_text(size = 8),
+    legend.key.width = unit(0.5, "cm")
+  ) +
+  scale_y_continuous(limits = c(0, 1.001), expand = c(0, 0))
+  # scale_fill_manual(values = admix_colours)
+
+plot_admix
+ggsave(paste0(species,'/outputs/petaurus_plot_admix.pdf'), 
+       plot_admix, width=40, height=30, units='cm', dpi=300)
+
 #### RAXML ################################################################################
-dt <- as.data.table(dms$gt)
+dt <- as.data.table(dms_no_clones$gt) #replaced dms with dms_no_clones
 
 # remove "invariant" sites (0,1 or 1,2)
 cols_idx <- which(
@@ -741,12 +843,48 @@ cols_idx <- which(
   })] |> unlist()
 )
 
-dms_raxml <- remove.snps.from.dart.data(dms, snps_to_remove = cols_idx, input_as_names = FALSE)
+dms_raxml <- remove.snps.from.dart.data(dms_no_clones, snps_to_remove = cols_idx, input_as_names = FALSE)
 
 dart2svdquartets(dms_raxml, basedir, species, paste0(dataset,'_raxml'), add_pop=TRUE, pop=dms_raxml$sample_names)
-genotype_matrix <- read.nexus.data('petaurus/popgen/raw_SNPFilt_1SNPperClone/svdq/petaurus_REPORTID_raxml.nex')
+genotype_matrix <- read.nexus.data('petaurus/popgen/raw_SNPFilt_1SNPperClone/svdq/petaurus_DPetas26-11610_raxml.nex')
+
 dnabin <- ape::nexus2DNAbin(genotype_matrix)
-ape::write.FASTA(dnabin, file='petaurus/popgen/raw_SNPFilt_1SNPperClone/svdq/petaurus_REPORTID_raxml.fasta')
+ape::write.FASTA(dnabin, file='petaurus/popgen/raw_SNPFilt_1SNPperClone/svdq/petaurus_DPetas26-11610_raxml.fasta')
 
 # cipres
 # galaxy
+
+## recreate dart plate ## 
+library(purrr)
+# read dart csv
+df_dart <- read.csv("petaurus/dart_raw/Report_DPetas26-11610_SNP_mapping_2.csv", header = FALSE)
+View(df_dart)
+
+# Keep 21st column onward 
+df_u <- df_dart[, 21:ncol(df_dart)]
+
+# Extract relevant rows
+plate_row   <- as.character(unlist(df_u[3, ]))   # row 3 = plate
+letter_row  <- as.character(unlist(df_u[4, ]))   # row 4 = letter
+number_row  <- as.numeric(unlist(df_u[5, ]))     # row 5 = number
+sample_row <- as.character(unlist(df_u[7, ]))   # row 7 = sample ID
+
+# Build tidy dataframe
+dart_tidy <- data.frame(plate = plate_row, letter = letter_row, number = number_row, sample = sample_row)
+
+# Reconstruct plates
+plate_table <- dart_tidy |>
+  group_split(plate) |>
+  setNames(unique(dart_tidy$plate)) |>
+  map(~ .x |>
+        arrange(letter, number) |>
+        pivot_wider(id_cols = letter, names_from = number, values_from = sample))
+
+plate_table["1"]
+plate_table["2"]
+plate_table["3"]
+
+
+
+
+
