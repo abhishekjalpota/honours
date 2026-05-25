@@ -108,7 +108,7 @@ site_colours <- named_list_maker(levels(site_levels), palette = 'Spectral',11)
 site_shapes <- setNames(1:length(levels(site_levels)), levels(site_levels))  # Assign shapes
  
 #### RAW GENOTYPE HEATMAP ####
-submat <- dms$gt[,sample(1:ncol(dms$gt), 1000, replace = FALSE)] %>% as.matrix
+submat <- dms$gt[,sample(1:ncol(dms$gt), 1000, replace = FALSE)] %>% as.matrix 
 submat[is.na(submat)] <- -9
 
 row_ann <- rowAnnotation(Group = m2$sp[match(rownames(submat), m2$sample)])
@@ -323,8 +323,8 @@ grp <- find.clusters(gen_d5, max.n.clust = 20) # retained 90 PCs
 # table(pop(gen_d5), grp$grp)
 
 # Run the DAPC 
-dapc1 <- dapc(gen_d5, grp$grp) #retained 150 PCs, 2 discriminant functions 
-dapc2 <- dapc(gen_d5, grp$grp) #retained 100 PCs, 2 discriminant functions
+dapc1 <- dapc(gen_d5, grp$grp) #retained 10 PCs, 2 discriminant functions 
+dapc2 <- dapc(gen_d5, grp$grp) #retained 150 PCs, 2 discriminant functions
 dapc3 <- dapc(gen_d5, grp$grp) #retained 200 PCs, 2 discriminant functions 
 dapc4 <- dapc(gen_d5, grp$grp) #retained 250 PCs, 2 discriminant functions
 
@@ -351,6 +351,7 @@ custom_colours <- adegenet::seasun(nlevels(pop_data))
 
 # Plot
 scatter(dapc1, grp = pop_data, posi.da = "topright")
+scatter(dapc2, grp = pop_data, posi.da = "bottomleft")
 
 #### AMOVA ####
 library(poppr)
@@ -370,7 +371,7 @@ amova_result <- poppr.amova(gen_d5, ~popspecies/popbioregion)
 amova_result
 
 # Test significance
-# amova_sig <- randtest(amova_result, nrepet = 999) #taking rly long 
+# amova_sig <- randtest(amova_result, nrepet = 999) #taking rly long
 amova_sig_quick <- randtest(amova_result, nrepet = 99)
 amova_sig_quick
 
@@ -523,7 +524,7 @@ ggsave(paste0(species,'/outputs/petaurus_splitstree_missing.pdf'),
 # Remove samples with NA in site column (not species, since all are Grevillea petaurus)
 # Filter sites with n < 2
 
-dms_no_clones <- dms #TEMPORARY!!! until you do kinship
+# dms_no_clones <- dms #TEMPORARY!!! until you do kinship
 
 site_df <- dms_no_clones$meta$analyses[,'site'] %>% as.data.frame()
 site_df[site_df==0] <- NA
@@ -580,10 +581,17 @@ Fst_sig$Geo_dist2 <- Fst_sig$Geo_dist / 1000  # Convert to km
 
 
 # colour by pairwise groupings
+Fst_sig2 <- Fst_sig |>
+  mutate(sp_comparison = paste0(str_extract(sp1, "[^_]+$"), "_", str_extract(sp2, "[^_]+$")))
+
+Fst_colours <- c("darkorchid2", "navyblue", "cornflowerblue", "aquamarine2", "chartreuse3",  
+                 "gold", "coral", "hotpink2", "firebrick")
+
 # Mantel plot
-fstp1 <- ggplot(Fst_sig, aes(x = Geo_dist2, y = Fst)) +
-  geom_point(size = 1, alpha = 0.3) +
-  labs(x = "Distance (km)", y = "FST", colour = "Comparison") +
+fstp1 <- ggplot(Fst_sig2, aes(x = Geo_dist2, y = Fst, colour = sp_comparison)) +
+  geom_point(size = 1, alpha = 0.4) +
+  labs(x = "Distance (km)", y = "FST", colour = "Species Comparison") +
+  scale_colour_manual(values = Fst_colours) +
   theme_bw() +
   theme(panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(), 
@@ -595,7 +603,7 @@ fstp1 <- ggplot(Fst_sig, aes(x = Geo_dist2, y = Fst)) +
 print(fstp1)
 
 ggsave("petaurus/outputs/petaurus_fst_mantel.png", 
-       fstp1, width = 15, height = 10, units = "cm", dpi = 600)
+       fstp1, width = 25, height = 20, units = "cm", dpi = 600)
 
 ##### FST HEATMAP ####
 # Print Mantel result
