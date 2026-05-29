@@ -63,9 +63,9 @@ setwd('/Users/abhishek/honours')
 d1        <- new.read.dart.xls.onerow(basedir,species,dataset,topskip, nmetavar, euchits=FALSE)
 hist(colMeans(is.na(d1$gt)))  ### histogram of missingness of each locus before filtering
 
-d1$sample_names[which(!d1$sample_names %in% meta$sample_names)] # samples in dart not in meta
-
 meta      <- read.meta.data.full.analyses.df(d1, basedir, species, dataset)
+
+d1$sample_names[which(!d1$sample_names %in% meta$sample_names)] # samples in dart not in meta
 
 d2        <- dart.meta.data.merge(d1, meta) 
 
@@ -92,6 +92,7 @@ length(dms$locus_names) # how many polymorphic loci remain
 length(dms$sample_names) # how many samples remain
 
 dms_maf5 <- remove.by.maf(dms, 0.05) # make minor allele frequency filtered version 
+length(dms_maf5$locus_names)
 
 m2 <- dms$meta$analyses %>% as.data.frame() #get metadata 
 m2$lat <- as.numeric(m2$lat)
@@ -239,8 +240,8 @@ dev.off()
 # dms_maf1 <- remove.by.maf(dms_no_clones, 0.01) # if there are a lot of loci, minor allele filter is a good way to reduce them while keeping information esp. in PCA
 
 dms_pca <- remove.poor.quality.snps(dms_no_clones, min_repro=0.96, max_missing=0.3) %>% 
-  remove.by.maf(., 0.05) %>%
-  remove.loci.randomly(.,2000)
+  remove.by.maf(., 0.05) 
+  # remove.loci.randomly(.,2000)
 
 # if there are a lot of loci, minor allele filter is a good way to reduce them while keeping information esp. in PCA
 # duplicate clones should be excluded from PCA
