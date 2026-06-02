@@ -451,7 +451,7 @@ splitstree_plot <- ggplot(Nnet, aes(x = x, y = y)) +
   geom_shape(data = hull, alpha = 0.2, expand = 0.01, radius = 0.01,
              aes(fill = sp), color = 'transparent') +
   geom_splitnet(layout = "slanted", size = 0.2) +
-  geom_point(data = x_tips, aes(x = x, y = y, colour = sp_original, shape = sp_original), size = 1) +
+  geom_point(data = x_tips, aes(x = x, y = y, colour = sp, shape = sp), size = 1) + #or sp_original
   scale_fill_manual(values = sp_colours, na.translate = FALSE, guide = "none") +    
   scale_colour_manual(values = sp_colours, na.translate = FALSE) +    
   scale_shape_manual(values = sp_shapes) +            
@@ -468,15 +468,16 @@ splitstree_plot <- ggplot(Nnet, aes(x = x, y = y)) +
 splitstree_plot
 
 # Save the plot
-ggsave(paste0(species,'/outputs/petaurus_splitstree_original.pdf'), 
+ggsave(paste0(species,'/outputs/petaurus_splitstree.pdf'), 
        splitstree_plot, width=30, height=30, units='cm', dpi=300)
 
 # Display the plot
 pca_splits_plot <- ggarrange(all3_pca_plots, splitstree_plot, nrow=2, labels=c("","D"), font.label=list(face="plain"))
 
+pca_splits_plot
 # Save the plot
 ggsave(paste0(species,'/outputs/petaurus_pca_splitstree.png'), 
-       pca_splits_plot, width=22, height=18, units='cm', dpi=300, bg='white')
+       pca_splits_plot, width=28, height=24, units='cm', dpi=300, bg='white')
 
 
 
@@ -704,7 +705,7 @@ gene_width <- nrow(mat_fst) * unit(6, "mm")
 draw(geo + gene, ht_gap = -gene_width, merge_legend=TRUE)
 
 # Set the file name and parameters
-filename <- "petaurus/outputs/petaurus_fst.png"
+filename <- "petaurus/outputs/petaurus_fst.png" 
 width <- 24
 height <- 20
 dpi <- 600
@@ -724,7 +725,7 @@ igds_file <- dart2gds(dms, '', species, dataset)
 
 igds <- snpgdsOpen(igds_file)
 
-snpgdsGDS2BED(igds, bed.fn=paste0('',species, "_", dataset,"_bed"))
+snpgdsGDS2BED(igds, bed.fn=paste0('',species, "_", dataset, "_new", "_bed")) #added "new" 
 
 
 fam <- data.frame(fam = 1:length(dms$sample_names), ind = dms$sample_names, 
@@ -733,14 +734,14 @@ fam <- data.frame(fam = 1:length(dms$sample_names), ind = dms$sample_names,
                   pheno = rep(-9, length(dms$sample_names)), stringsAsFactors = FALSE)
 
 write.table(fam, 
-            paste0('',species, "_", dataset,"_bed.fam"), sep = "\t", 
+            paste0('',species, "_", dataset, "_new", "_bed.fam"), sep = "\t", #added "new"
             quote = FALSE, row.names = FALSE, col.names = FALSE)
 
 snpgdsClose(igds)
 
 # #### LINUX COMMAND ADMIXTURE ####
-# for K in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; \
-# do admixture/dist/admixture_macosx-1.3.0/admixture --cv=20 petaurus_DPetas26-11610_bed.bed $K -j20 | tee ADMIXTURE_log${K}.out; done
+# for K in 1 2 3 4 5 6 7 8 9 10; \
+# do admixture/dist/admixture_macosx-1.3.0/admixture --cv=20 petaurus_DPetas26-11610_new_bed.bed $K -j20 | tee ADMIXTURE_log${K}.out; done
 # grep -h CV ADMIXTURE_log*.out > ADMIXTURE_CV_results.tsv
 
 # Plot cross validation error for most optimal k value
@@ -774,8 +775,8 @@ cv_plot
 
 # ancestry prediction for all individuals 
 
-q_file <- "/Users/abhishek/honours/petaurus/outputs/petaurus_DPetas26-11610_bed.3.Q"
-fam_file <- "/Users/abhishek/honours/petaurus/outputs/petaurus_DPetas26-11610_bed.fam"
+q_file <- "/Users/abhishek/honours/petaurus/outputs/petaurus_DPetas26-11610_new_bed.3.Q"
+fam_file <- "/Users/abhishek/honours/petaurus/outputs/petaurus_DPetas26-11610_new_bed.fam"
 
 opt_k <-3   # set K value here
 
@@ -838,7 +839,7 @@ plot_admix <- ggplot(admix_P2, aes(x = sample, y = Q, fill = factor(population))
   # scale_fill_manual(values = admix_colours)
 
 plot_admix
-ggsave(paste0(species,'/outputs/petaurus_plot_admix.pdf'), 
+ggsave(paste0(species,'/outputs/petaurus_plot_new_admix.pdf'), 
        plot_admix, width=40, height=30, units='cm', dpi=300)
 
 #### RAXML ################################################################################
