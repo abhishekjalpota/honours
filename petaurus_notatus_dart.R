@@ -249,10 +249,13 @@ pcnames <- paste0(colnames(g_pca_df), " (",
                   round(gen_pca[["eig"]][1:6] / sum(gen_pca[["eig"]]) * 100, 2), 
                   "%)")
 
+write.xlsx(g_pca_df2, "petaurus/outputs/notatus/petaurus_notatus_pca_data.xlsx")
+
+g_pca_df2$lat<- as.numeric(g_pca_df2$lat)
 
 # Common PCA plot elements
 base_pca_plot <- function(data, x, y, xlabel, ylabel) {
-  ggplot(data, aes_string(x = x, y = y, colour = "sp", shape = "sp")) +
+  ggplot(data, aes_string(x = x, y = y, colour = "lat", shape = "sp")) + #changed "sp" to "lat", removed shape
     geom_vline(xintercept = 0, alpha = 0.2) +
     geom_hline(yintercept = 0, alpha = 0.2) +
     geom_point(size = 1.5) +
@@ -265,8 +268,10 @@ base_pca_plot <- function(data, x, y, xlabel, ylabel) {
       axis.title = element_text(size = 10),
       axis.text = element_text(size = 8)
     ) +
-    scale_colour_manual(values = sp_colours) +
-    scale_shape_manual(values = sp_shapes)
+    # scale_colour_manual(values = sp_colours) +
+    scale_shape_manual(values = sp_shapes) +
+    # scale_colour_continuous(palette = c("#FEE0D2", "#FC9272", "#DE2D26"))
+    scale_colour_gradient(low="blue", high="red", name = "Latitude")
 }
 
 # PCA Plot 1: PC1 vs PC2 (with convex hull)
