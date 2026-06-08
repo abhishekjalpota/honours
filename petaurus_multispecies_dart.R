@@ -315,6 +315,31 @@ ggsave("petaurus/outputs/petaurus_pca.png",
        all3_pca_plots, width = 22, height = 10,
        units = "cm", dpi = 300, bg = 'white')
 
+# Test if principal components are associated with latitude 
+ef_lat <- envfit(gen_pca ~ lat, data = g_pca_df2, permutations = 99, na.rm = TRUE)
+
+print(ef_lat)
+plot(ef_lat, col = "red", cex = 1.2)
+
+
+# Trying to label by metadata species 
+testingmeta <- read_xlsx('/Users/abhishek/honours/petaurus/meta/petaurus_DPetas26-11610_meta.xlsx')
+
+# Reorder metadata to match genlight individuals
+testing2 <- testingmeta[match(indNames(gen_d5), testingmeta$sample), ]
+
+# Verify alignment
+all(indNames(gen_d5) == testing2$sample)
+
+# Assign populations to genlight 
+pop(gen_d5) <- factor(testing2$pca_pops)
+
+# Convert to BA3-SNPs format 
+library(dartR.base)
+
+gl2bayesAss(x = gen_d5, outfile = "petaurus_bayesass.txt", 
+            outpath = "/Users/abhishek/honours/petaurus/outputs/")
+
 
 #### DAPC ####
 # Find optimal clusters for up to k = 20
