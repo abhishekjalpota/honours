@@ -301,7 +301,6 @@ ggsave("petaurus/outputs/breviceps/petaurus_breviceps_pca.png",
        all3_pca_plots, width = 22, height = 10,
        units = "cm", dpi = 300, bg = 'white')
 
-
 ### DAPC ####
 #NA
 # Find optimal clusters for up to k = 10
@@ -312,7 +311,7 @@ grp <- find.clusters(gen_d5, max.n.clust = 10) # retained 90 PCs
 
 # Run the DAPC
 dapc1 <- dapc(gen_d5, grp$grp) #retained 10 PCs, 2 discriminant functions
-3dapc2 <- dapc(gen_d5, grp$grp) #retained 150 PCs, 2 discriminant functions
+dapc2 <- dapc(gen_d5, grp$grp) #retained 150 PCs, 2 discriminant functions
 dapc3 <- dapc(gen_d5, grp$grp) #retained 200 PCs, 2 discriminant functions
 dapc4 <- dapc(gen_d5, grp$grp) #retained 250 PCs, 2 discriminant functions
 
