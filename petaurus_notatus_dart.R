@@ -728,10 +728,10 @@ write.table(fam,
 snpgdsClose(igds)
 
 # #### LINUX COMMAND ADMIXTURE ####
-for K in 1 2 3 4 5 6 7 8 9 10; \
-do admixture/dist/admixture_macosx-1.3.0/admixture --cv=20 petaurusnotatus_DPetas26-11610_bed.bed $K -j10 |
-  tee ADMIXTURE_log${K}.out; done
-grep -h CV ADMIXTURE_log*.out > ADMIXTURE_CV_results.tsv
+# for K in 1 2 3 4 5 6 7 8 9 10; \
+# do admixture/dist/admixture_macosx-1.3.0/admixture --cv=20 petaurusnotatus_DPetas26-11610_bed.bed $K -j10 |
+#   tee ADMIXTURE_log${K}.out; done
+# grep -h CV ADMIXTURE_log*.out > ADMIXTURE_CV_results.tsv
 
 # Plot cross validation error for most optimal k value
 library(data.table)
@@ -762,12 +762,14 @@ cv_plot <- ggplot(cv, aes(x = as.numeric(K), y = CV_error)) +
   theme_bw()
 cv_plot
 
+#plot k=2,3 
+
 # ancestry prediction for all individuals 
 
-q_file <- "/Users/abhishek/honours/petaurus/outputs/notatus/petaurusnotatus_DPetas26-11610_bed.3.Q"
+q_file <- "/Users/abhishek/honours/petaurus/outputs/notatus/petaurusnotatus_DPetas26-11610_bed.2.Q"
 fam_file <- "/Users/abhishek/honours/petaurus/outputs/notatus/petaurusnotatus_DPetas26-11610_bed.fam"
 
-opt_k <-3   # set K value here
+opt_k <-2   # set K value here
 
 admix_P <- read.table(q_file)
 admix_fam <- read.table(fam_file, sep = "\t")
@@ -802,7 +804,16 @@ admix_P2$population <- factor(
   levels = unique(admix_P2$population[order(nchar(as.character(admix_P2$population)))])
 )
 
-plot_admix <- ggplot(admix_P2, aes(x = sample, y = Q, fill = factor(population))) +
+library(forcats)
+
+# admix_P3 <- admix_P2 %>% 
+#   mutate(sample = fct_reorder(sample, Q))
+
+admix_P3 <- admix_P2 |>
+  arrange(population) |> 
+  mutate(sample = fct_inorder(factor(sample)))
+
+plot_admix <- ggplot(admix_P3, aes(x = sample, y = Q, fill = factor(population))) +
   geom_bar(position = "stack", stat = "identity", width = 1) +
   theme_few() +
   labs(
@@ -828,7 +839,7 @@ plot_admix <- ggplot(admix_P2, aes(x = sample, y = Q, fill = factor(population))
 # scale_fill_manual(values = admix_colours)
 
 plot_admix
-ggsave(paste0(species,'/outputs/notatus/petaurus_notatus_plot_admix.pdf'), 
+ggsave(paste0(species,'/outputs/notatus/petaurus_notatus_plot_admix_ordered_k2.pdf'), 
        plot_admix, width=40, height=30, units='cm', dpi=300)
 
 #### RAXML ################################################################################
