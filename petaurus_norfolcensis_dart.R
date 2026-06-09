@@ -802,7 +802,13 @@ admix_P2$population <- factor(
   levels = unique(admix_P2$population[order(nchar(as.character(admix_P2$population)))])
 )
 
-plot_admix <- ggplot(admix_P2, aes(x = sample, y = Q, fill = factor(population))) +
+library(forcats)
+admix_P3 <- admix_P2 |>
+  arrange(population) |> 
+  mutate(sample = fct_inorder(factor(sample)))
+
+
+plot_admix <- ggplot(admix_P3, aes(x = sample, y = Q, fill = factor(population))) +
   geom_bar(position = "stack", stat = "identity", width = 1) +
   theme_few() +
   labs(
@@ -828,7 +834,7 @@ plot_admix <- ggplot(admix_P2, aes(x = sample, y = Q, fill = factor(population))
 # scale_fill_manual(values = admix_colours)
 
 plot_admix
-ggsave(paste0(species,'/outputs/norfolcensis/petaurus_norfolcensis_plot_admix.pdf'), 
+ggsave(paste0(species,'/outputs/norfolcensis/petaurus_norfolcensis_plot_admix_ordered_k2.pdf'), 
        plot_admix, width=40, height=30, units='cm', dpi=300)
 
 #### RAXML ################################################################################
