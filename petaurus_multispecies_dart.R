@@ -340,6 +340,9 @@ library(dartR.base)
 gl2bayesAss(x = gen_d5, outfile = "petaurus_bayesass.txt", 
             outpath = "/Users/abhishek/honours/petaurus/outputs/")
 
+# Convert to genepop for divMigrate
+gl2genepop(x = gen_d5, verbose = 3, outfile = "petaurus_genepop.gen", 
+           outpath = getwd())
 
 #### DAPC ####
 # Find optimal clusters for up to k = 20
@@ -424,6 +427,8 @@ ind_ho <- fastDiversity::individual_Ho(dms$gt,
                                           maf=0.05, max_missingness = 0.3)
 ind_ho[odd_samples]
 
+
+
 ind_miss <- rowMeans(is.na(dms$gt))  # the missing proportion of individuals
 m2$miss <- ind_miss[m2$sample]
 
@@ -440,6 +445,7 @@ ggplot(m2, aes(x=miss, y=ind_ho, color=sp, label=sample))+
   theme_few()+
   ggrepel::geom_text_repel()
 
+odd_samples_new <- c('WGM244_161', 'WGM244_31', 'WGM244_152', 'WGM244_208')
 
  #### SPLITSTREE ####
 gt_dist <- dist(dms$gt, method='euclidean') %>% as.matrix #distance matrix
@@ -553,30 +559,30 @@ ggsave(paste0(species,'/outputs/petaurus_splitstree_missing.pdf'),
 
 # dms_no_clones <- dms #TEMPORARY!!! until you do kinship
 
-site_df <- dms_no_clones$meta$analyses[,'site'] %>% as.data.frame()
+site_df <- dms_no_clones$meta$analyses[,'population'] %>% as.data.frame() #changed from site to pop
 site_df[site_df==0] <- NA
 
 sitepop_freq <- as.data.frame(table(site_df))
 not_n1_sites <- as.vector(sitepop_freq[sitepop_freq$Freq < 3, 1])
-keep_samples <- dms_no_clones$sample_names[which(dms_no_clones$meta$analyses[,'site'] %in% sitepop_freq[sitepop_freq$Freq >= 3, 1])]
+keep_samples <- dms_no_clones$sample_names[which(dms_no_clones$meta$analyses[,'population'] %in% sitepop_freq[sitepop_freq$Freq >= 3, 1])]
 
 fst_dms <- remove.by.list(dms_no_clones, keep_samples)
 
 length(fst_dms$sample_names)
-table(fst_dms$meta$site)
+table(fst_dms$meta$population)
 
 
 # Check filtered data
 print("After filtering sites with n < 2:")
 print(length(fst_dms$sample_names))
-print(table(fst_dms$meta$analyses[,'site']))
+print(table(fst_dms$meta$analyses[,'population']))
 
 # Calculate FST and geographic distance
 gds_file <- dart2gds(fst_dms, basedir, species, dataset)
-pFst <- population.pw.Fst(fst_dms, fst_dms$meta$analyses[,'site'], basedir, species, dataset,
+pFst <- population.pw.Fst(fst_dms, fst_dms$meta$analyses[,'population'], basedir, species, dataset,
                           maf_val=0.05, miss_val=0.3)
 
-pS <- population.pw.spatial.dist(fst_dms, fst_dms$meta$analyses[,'site'])
+pS <- population.pw.spatial.dist(fst_dms, fst_dms$meta$analyses[,'population'])
 
 # Make self comparisons NA
 diag(pFst$Fst) <- NA
@@ -586,10 +592,10 @@ diag(pS$S) <- NA
 
 meta_agg_df <- data.frame(lat = fst_dms$meta$lat, 
                           long = fst_dms$meta$long,
-                          site = fst_dms$meta$analyses[,"site"],
+                          pop = fst_dms$meta$analyses[,"population"],
                           sp = fst_dms$meta$analyses[,"sp"])
 meta_agg <- meta_agg_df %>%
-  group_by(sp, site) %>%
+  group_by(sp, pop) %>%
   summarise(lat = mean(lat, na.rm = TRUE),
             long = mean(long, na.rm = TRUE),
             .groups = 'drop')
@@ -629,7 +635,7 @@ fstp1 <- ggplot(Fst_sig2, aes(x = Geo_dist2, y = Fst, colour = sp_comparison)) +
 # Display and save plot
 print(fstp1)
 
-ggsave("petaurus/outputs/petaurus_fst_mantel.png", 
+ggsave("petaurus/outputs/petaurus_fst_mantel_pcapops.png", 
        fstp1, width = 25, height = 20, units = "cm", dpi = 600)
 
 ##### FST HEATMAP ####
@@ -650,7 +656,7 @@ od <- colnames(mat_fst)[column_order(order_hm)]
 mat_fst <- mat_fst[od, od]
 mat_dist <- mat_dist[od, od]
 
-mat_dist <- merge(mat_dist, meta_agg[,c('sp','site')], by.x=0, by.y="site", all.y=FALSE) #add aggregated df to mat2 (fst)
+mat_dist <- merge(mat_dist, meta_agg[,c('sp','pop')], by.x=0, by.y="pop", all.y=FALSE) #add aggregated df to mat2 (fst)
 rownames(mat_dist) <- mat_dist$Row.names
 mat_dist$Row.names <- NULL
 mat_dist <- mat_dist[match(colnames(mat_dist)[1:nrow(mat_dist)],rownames(mat_dist)),]
@@ -730,7 +736,7 @@ gene_width <- nrow(mat_fst) * unit(6, "mm")
 draw(geo + gene, ht_gap = -gene_width, merge_legend=TRUE)
 
 # Set the file name and parameters
-filename <- "petaurus/outputs/petaurus_fst.png" 
+filename <- "petaurus/outputs/petaurus_fst_pcapops.png" 
 width <- 24
 height <- 20
 dpi <- 600
