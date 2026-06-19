@@ -32,6 +32,7 @@ library(adegenet)
 library(circlize)
 library(ComplexHeatmap) #git install? 
 library(data.table)
+library(diveRsity) #devtools::install_github("kkeenan02/diveRsity")
 library(dplyr)
 library(ggforce)
 library(ggplot2)
@@ -343,6 +344,173 @@ gl2bayesAss(x = gen_d5, outfile = "petaurus_bayesass.txt",
 # Convert to genepop for divMigrate
 gl2genepop(x = gen_d5, verbose = 3, outfile = "petaurus_genepop.gen", 
            outpath = getwd())
+
+# Calculate relative migration 
+migration_rates <- divMigrate(
+  infile = "petaurus_genepop.gen", 
+  stat = "d", #Jost's D 
+  boots = 100, 
+  filter_threshold = 0.3, 
+  plot_network = TRUE, 
+  para = TRUE #not sure about this
+)
+
+################# Migration and FST ###################
+
+make_genepop_file <- function(dms, maf, missing, group, grouping){
+
+  dmsx <- dms %>%
+    remove.poor.quality.snps(., min_repro=0.96,max_missing=missing) %>%
+    remove.by.maf(., maf)
+
+  ds <- dmsx$gt
+
+  print(paste("Loci:", ncol(ds)))
+  print(paste("Samples:",nrow(ds)))
+
+
+  # if(ncol(ds) >=50){# make into genepop format
+  old <- c("0","1","2", NA)
+  new <- c("0101","0102","0202","0000")
+  ds[ds %in% old] <- new[match(ds, old, nomatch = 0000)]
+
+  # populations
+  pops <- unique(grouping) # get population names
+
+  # write genepop file
+  gf <- paste0(species, "/popgen/genepop_",group,".gen") # make genepop file path
+
+  cat(paste0("genepop file: ",species, " with MAF ", paste0(maf)), # first line of genepop file
+      file=gf,sep="\n")
+  cat(colnames(ds),file=gf,sep="\n", append=TRUE) # one loci name per line
+
+  remove <- c() # vector for populations excluded from the analysis
+
+  for (i in 1:length(pops)){ #loop for making the population groups
+    if (length(which(grouping %in% pops[i]))<=1){ # find if the population is n=1
+      cat("Removing population ", pops[i], " due to n=1")
+      remove <- c(remove, pops[i]) # add the pop name to remove vector
+    }else{
+      cat("pop",file=gf,sep="\n", append=TRUE) # add the data to the genepop file
+      df <- ds[which(grouping %in% pops[i]),]
+      for (j in 1:nrow(df)){
+        cat(c(paste0(pops[i],","),df[j,], "\n"),file=gf,sep="\t", append=TRUE)
+      }
+    }
+
+  } #end of pops loop
+  return(gf)
+}
+
+c <- make_genepop_file(dms, maf=0.05,missing=0.2, "petaurus", dms$meta$analyses[,"population"])
+
+checking <- read.genepop(c)
+checking
+
+# Diversity was measured as mean allelic richness for every population using the resampling method in the divBasic function in the R package diveRsity (46); to convert these diversity values into the data structure of pairwise relationships between populations, we calculated genetic diversity ratios for each population pair in each direction as the ratio of allelic richness in the destination versus the origin population. Pairwise genetic similarity was measured as 1/Fst.
+
+# AR destination/AR origin for each population
+# pairwise genetic similarity 1/fst
+
+
+
+#Migration was estimated using the divMigrate method (19) with Jost's D metric of differentiation (47), as implemented in the R package diveRsity (46). This approach uses allele frequency differences between population pairs to estimate rates of migration in each direction; note that these rates are relative to other population pairs in the same data set and cannot be compared across data sets.
+
+v <- diveRsity::divMigrate(infile=c, outfile=NULL, stat="d",plot_network=TRUE, filter_threshold = 0.2, boots=100, para=TRUE)
+
+# Save a single object to a file
+saveRDS(v, "/Users/abhishek/honours/petaurus/outputs/d_m_100_reps.rds")
+# Restore it under a different name
+v <- readRDS("/Users/abhishek/honours/petaurus/outputs/d_m_100_reps.rds")
+
+d_mig <- v$dRelMig #v$gRelMig
+
+# from is rows, to is columns
+colnames(d_mig) <- unique(dms$meta$analyses[,"population"])
+rownames(d_mig) <- unique(dms$meta$analyses[,"population"])
+
+# Filter by significance -- significance is if there is a significant difference in the directions
+# Test for overlap of the estimated 95% confidence intervals. Where there is no overlap, the directional gene flow components are said to be significantly different (asymmetric).
+mig_sig <- v$dRelMigSig #v$gRelMigSig
+colnames(mig_sig) <- unique(dms$meta$analyses[,"population"])
+rownames(mig_sig) <- unique(dms$meta$analyses[,"population"])
+
+d_mig[mig_sig>0.01] <- NA
+
+# qgraph::qgraph(d_mig,legend = TRUE, edge.labels = TRUE,
+# curve = 2.5, mar = c(2, 2, 5, 5))
+
+long_mig <- reshape2::melt(d_mig)
+
+meta_agg <- m2 |>
+  group_by(population) |> 
+  summarize(lat = mean(lat, na.rm=TRUE),
+            long = mean(long,na.rm=TRUE),
+            .groups = 'drop')
+  # subset(.,pop_large_short!="Ex_situ_PF")
+
+long_mig <- merge(long_mig, distinct(meta_agg[, c("population","lat","long")]), by.x = "Var1", by.y = "population", all.y = FALSE)
+long_mig <- merge(long_mig, distinct(meta_agg[, c("population","lat","long")]), by.x = "Var2", by.y = "population", all.y = FALSE)
+long_mig<- distinct(long_mig)
+
+colnames(long_mig)[1:3] <- c("from", "to", "m")
+
+# long_mig <- long_mig[long_mig$from!="Ex_situ_PF"&long_mig$to!="Ex_situ_PF"&!is.na(long_mig$m),]
+# pop_Fst_sig2 <- pop_Fst_sig2[order(pop_Fst_sig2$Fst),]
+
+# Common theme settings
+common_theme <- theme(
+  axis.text = element_text(size = 6),
+  axis.title = element_text(size = 8),
+  legend.title = element_text(size = 8),
+  legend.text = element_text(size = 6),  # Added legend text size
+  strip.text.x = element_text(size = 8)
+)
+
+
+# Plot 2: long_mig
+long_mig <- long_mig[order(long_mig$m), ]
+
+long_mig <- na.omit(long_mig) 
+
+meta_agg <- na.omit(meta_agg)
+
+# load australia map
+ozmaps::abs_ste -> australia_map
+
+xlims <- c(112, 155)
+ylims <- c(-10, -43)
+
+# simplify the australia outline
+australia_map_simplified <- st_simplify(australia_map, dTolerance = 5000)
+
+# crop both astralia map and the GPKG data using the defined bounding box (limits)
+bbox <- st_bbox(c(xmin = xlims[1], xmax = xlims[2], ymin = ylims[1], ymax = ylims[2]), crs = st_crs(australia_map_simplified))
+australia_map_simplified <- st_crop(australia_map_simplified, bbox)
+
+library(sf)
+gst_no_map <- ggplot() + coord_cartesian() + coord_fixed() +
+  theme_few() +
+  geom_curve(data = long_mig[long_mig$m > 0.2, ], #
+             aes(x = long.x, y = lat.x,
+                 xend = long.y, yend = lat.y, colour = m),
+             size = 0.5, na.rm = TRUE, curvature = 0.3,
+             arrow = arrow(angle = 20, ends = "first", type = "open", length = unit(2, "mm"))) +
+  scale_color_gradient(low = "white", high = "red") + # midpoint = 0.5, mid = "blue",
+  geom_sf(data = australia_map_simplified, fill = "transparent", color = "black", linewidth = 0.4) +
+  coord_sf(xlim = c(140, 154), ylim = c(-38, -27)) + 
+  geom_point(data = meta_agg, mapping = aes(x = long, y = lat), colour = "black") +
+  # xlim(lims[1], lims[2]) +
+  # ylim(lims[3], lims[4]) +
+  labs(x = "Longitude", y = "Latitude", colour = "Migration (m)") + guides(size = "none", alpha = "none") 
+  # ggrepel::geom_label_repel(data = m2, aes(x = long, y = lat, label = population),
+  #                           min.segment.length = 0.25, color = "black", fill = "white", size = 3,
+  #                           segment.colour = "white", alpha = 0.9, label.size = 0, nudge_y = 0.003) +
+  # theme(legend.position = "bottom")
+
+
+gst_no_map
+
 
 #### DAPC ####
 # Find optimal clusters for up to k = 20
