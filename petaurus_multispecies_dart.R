@@ -499,10 +499,12 @@ gst_no_map <- ggplot() + coord_cartesian() + coord_fixed() +
   scale_color_gradient(low = "white", high = "red") + # midpoint = 0.5, mid = "blue",
   geom_sf(data = australia_map_simplified, fill = "transparent", color = "black", linewidth = 0.4) +
   coord_sf(xlim = c(140, 154), ylim = c(-38, -27)) + 
-  geom_point(data = meta_agg, mapping = aes(x = long, y = lat), colour = "black") +
+  geom_point(data = meta_agg, mapping = aes(x = long, y = lat, fill = population), shape = 21, colour = "black") +
   # xlim(lims[1], lims[2]) +
   # ylim(lims[3], lims[4]) +
-  labs(x = "Longitude", y = "Latitude", colour = "Migration (m)") + guides(size = "none", alpha = "none") 
+  labs(x = "Longitude", y = "Latitude", colour = "Migration (m)") + guides(size = "none", alpha = "none") +
+  # guides(colour = guide_legend(position = "right"), fill = guide_legend(position = "bottom"))
+  theme(legend.position = "bottom")
   # ggrepel::geom_label_repel(data = m2, aes(x = long, y = lat, label = population),
   #                           min.segment.length = 0.25, color = "black", fill = "white", size = 3,
   #                           segment.colour = "white", alpha = 0.9, label.size = 0, nudge_y = 0.003) +
@@ -511,6 +513,9 @@ gst_no_map <- ggplot() + coord_cartesian() + coord_fixed() +
 
 gst_no_map
 
+ggsave("petaurus/outputs/petaurus_divmigrate_plot_pops.png",
+       gst_no_map, width = 35, height = 25,
+       units = "cm", dpi = 300, bg = 'white')
 
 #### DAPC ####
 # Find optimal clusters for up to k = 20
