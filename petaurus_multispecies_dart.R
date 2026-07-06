@@ -93,7 +93,7 @@ length(dms$locus_names) # how many polymorphic loci remain
 length(dms$sample_names) # how many samples remain
 
 dms_maf5 <- remove.by.maf(dms, 0.05) # make minor allele frequency filtered version 
-length(dms_maf5$locus_names)
+length(dms_maf5$locus_names) 
 
 m2 <- dms$meta$analyses %>% as.data.frame() #get metadata 
 m2$lat <- as.numeric(m2$lat)
