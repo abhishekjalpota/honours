@@ -279,7 +279,7 @@ base_pca_plot <- function(data, x, y, xlabel, ylabel) {
     theme_few() +
     theme(
       legend.key.size = unit(0, 'lines'),
-      legend.position = "right",
+      legend.position = "bottom",
       legend.text = element_text(face = "italic"),
       axis.title = element_text(size = 10),
       axis.text = element_text(size = 8)
@@ -314,6 +314,10 @@ print(all3_pca_plots)
 
 ggsave("petaurus/outputs/petaurus_pca.png",
        all3_pca_plots, width = 22, height = 10,
+       units = "cm", dpi = 300, bg = 'white')
+
+ggsave("petaurus/outputs/petaurus_pca_pc1and2.png",
+       pca_plot1, width = 10, height = 10, 
        units = "cm", dpi = 300, bg = 'white')
 
 # Test if principal components are associated with latitude 
@@ -467,7 +471,7 @@ common_theme <- theme(
   strip.text.x = element_text(size = 8)
 )
 
-
+  
 # Plot 2: long_mig
 long_mig <- long_mig[order(long_mig$m), ]
 
@@ -674,6 +678,10 @@ splitstree_plot
 # Save the plot
 ggsave(paste0(species,'/outputs/petaurus_splitstree.pdf'), 
        splitstree_plot, width=30, height=30, units='cm', dpi=300)
+
+ggsave("petaurus/outputs/petaurus_splitstree.png",
+       splitstree_plot, width = 33, height = 27,
+       units = "cm", dpi = 300, bg = 'white')
 
 # Display the plot
 pca_splits_plot <- ggarrange(all3_pca_plots, splitstree_plot, nrow=2, labels=c("","D"), font.label=list(face="plain"))
@@ -1045,6 +1053,10 @@ plot_admix <- ggplot(admix_P2, aes(x = sample, y = Q, fill = factor(population))
 plot_admix
 ggsave(paste0(species,'/outputs/petaurus_plot_new_admix.pdf'), 
        plot_admix, width=40, height=30, units='cm', dpi=300)
+
+ggsave("petaurus/outputs/petaurus_plot_new_admix.png",
+       plot_admix, width = 40, height = 30,
+       units = "cm", dpi = 300, bg = 'white')
 
 #### RAXML ################################################################################
 dt <- as.data.table(dms_no_clones$gt) #replaced dms with dms_no_clones

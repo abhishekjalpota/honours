@@ -762,14 +762,15 @@ cv_plot <- ggplot(cv, aes(x = as.numeric(K), y = CV_error)) +
   theme_bw()
 cv_plot
 
-#plot k=2,3 
+# plot k=2,3 
 
 # ancestry prediction for all individuals 
+# adjust files below for each k value
 
-q_file <- "/Users/abhishek/honours/petaurus/outputs/notatus/petaurusnotatus_DPetas26-11610_bed.2.Q"
+q_file <- "/Users/abhishek/honours/petaurus/outputs/notatus/petaurusnotatus_DPetas26-11610_bed.3.Q"
 fam_file <- "/Users/abhishek/honours/petaurus/outputs/notatus/petaurusnotatus_DPetas26-11610_bed.fam"
 
-opt_k <-2   # set K value here
+opt_k <-3   # set K value here
 
 admix_P <- read.table(q_file)
 admix_fam <- read.table(fam_file, sep = "\t")
