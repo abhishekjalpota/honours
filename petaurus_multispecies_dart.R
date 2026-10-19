@@ -1,13 +1,5 @@
-# Script for Abhishek by Eilish 
-# three species:  P. breviceps and P. notatus
-# maybe some hybrids
-# 
-
-# Map of the samples locations
-
-
-
 # Relationships between the three species
+# P. breviceps, P. notatus, P. norfolcensis
 # pca
 # tsne
 # splitstree
@@ -604,14 +596,24 @@ ind_ho <- fastDiversity::individual_Ho(dms$gt,
                                           maf=0.05, max_missingness = 0.3)
 ind_ho[odd_samples]
 
+m2$ind_f <- fastDiversity::individual_F(dms$gt,
+                                        genetic_group_variable = dms$meta$analyses[,'sp'],
+                                        maf=0.05, max_missingness = 0.3)
 
 
 ind_miss <- rowMeans(is.na(dms$gt))  # the missing proportion of individuals
 m2$miss <- ind_miss[m2$sample]
 
+
+
 library(ggplot2)
 
 ggplot(m2, aes(x=ind_ho, fill=sp))+
+  geom_histogram(bins=50)+
+  facet_wrap(~sp)+
+  theme_few()
+
+ggplot(m2, aes(x=ind_f, fill=sp))+
   geom_histogram(bins=50)+
   facet_wrap(~sp)+
   theme_few()
@@ -951,7 +953,7 @@ write.table(fam,
 
 snpgdsClose(igds)
 
-# #### LINUX COMMAND ADMIXTURE ####
+# #### MAC COMMAND ADMIXTURE ####
 # for K in 1 2 3 4 5 6 7 8 9 10; \
 # do admixture/dist/admixture_macosx-1.3.0/admixture --cv=20 petaurus_DPetas26-11610_new_bed.bed $K -j20 | tee ADMIXTURE_log${K}.out; done
 # grep -h CV ADMIXTURE_log*.out > ADMIXTURE_CV_results.tsv
