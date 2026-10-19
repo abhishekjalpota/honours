@@ -1,3 +1,5 @@
+# ADMIXTURE populations within species plotted geographically
+
 # load necessary libraries
 library(sf)
 library(ggplot2)
@@ -110,7 +112,7 @@ not_admix_map <- ggplot() +
   geom_point(data = record_data_not, mapping = aes(x = long, y = lat, fill = factor(admix_pop_k2)), size=1,
              shape=21, stroke=0.2) +
   
-  # coord_sf(xlim = c(140, 154), ylim = c(-40, -27)) +  #for zoomed map, delete for full map
+  coord_sf(xlim = c(140, 154), ylim = c(-40, -27)) +  #for zoomed map, delete for full map
   
   scale_fill_manual(values=sp_colours, na.value = 'transparent') +
   
@@ -120,7 +122,7 @@ not_admix_map <- ggplot() +
   #               label = toupper(NAME)), 
   #           size = 3.5, color = "black", fontface = "bold") +
   theme_void() +
-  theme(
+  theme( 
     legend.position = "bottom",
     legend.text = element_text(face = "italic"),
     legend.key.size = unit(0.5, "lines"),
@@ -182,5 +184,4 @@ bre_admix_map <- ggplot() +
 bre_admix_map
 
 ggsave('/Users/abhishek/honours/petaurus/outputs/breviceps/breviceps_admix_map.png', bre_admix_map, width=15, height=15, units='cm',bg='white', dpi = 400)
-
 
