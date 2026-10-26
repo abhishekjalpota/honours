@@ -140,7 +140,7 @@ clones <- as.data.frame(cbind(genet = as.vector(components$membership), sample =
 
 ##### GET CLONES ####
 
-clones_out <- merge(clones, m2[,c("sample","lat","long","site", "sp")], by="sample", all.x = TRUE) #add some metadata
+clones_out <- merge(clones, m2[,c("sample","lat","long","site", "sp", "population")], by="sample", all.x = TRUE) #add                                                                                                             some metadata
 
 clones_out <- clones_out %>%
   arrange(site, genet)
@@ -149,7 +149,7 @@ old_genet_unique <- unique(clones_out$genet)
 new_genet_unique <- 1:length(old_genet_unique)
 clones_out$genet <- new_genet_unique[match(clones_out$genet,old_genet_unique)]
 
-write.xlsx(clones_out, "petaurus/outputs/clones_out.xlsx", rowNames=FALSE, colNames=TRUE)
+write.xlsx(clones_out, "petaurus/outputs/clones_out_v2.xlsx", rowNames=FALSE, colNames=TRUE)
 
 # Remove duplicate clones from working data
 #close clones with highest quality data (least missingess)
@@ -176,7 +176,7 @@ col_fun <- colorRamp2(c(0,0.45,0.5), c("grey95", "red",'black'))
 kinship_df <- kin %>% as.data.frame()
 kinship_df$sample <- rownames(kinship_df)
 
-hm_sites2 <- merge(kinship_df, m2[,c("sample","site", "lat", "long","sp")],
+hm_sites2 <- merge(kinship_df, m2[,c("sample","site", "lat", "long","sp", "population")],
                    by="sample", all.x=TRUE, all.y=FALSE)
 hm_sites2 <- hm_sites2[match(rownames(kinship_df),hm_sites2$sample),]
 rownames(hm_sites2) <- hm_sites2[,"sample"]
@@ -398,7 +398,7 @@ make_genepop_file <- function(dms, maf, missing, group, grouping){
   return(gf)
 }
 
-c <- make_genepop_file(dms, maf=0.05,missing=0.2, "petaurus", dms$meta$analyses[,"population"])
+c <- make_genepop_file(dms, maf=0.05,missing=0.2, "petaurus", dms$meta$analyses[,"site"])
 
 checking <- read.genepop(c)
 checking
@@ -412,14 +412,16 @@ checking
 
 #Migration was estimated using the divMigrate method (19) with Jost's D metric of differentiation (47), as implemented in the R package diveRsity (46). This approach uses allele frequency differences between population pairs to estimate rates of migration in each direction; note that these rates are relative to other population pairs in the same data set and cannot be compared across data sets.
 
-v <- diveRsity::divMigrate(infile=c, outfile=NULL, stat="d",plot_network=TRUE, filter_threshold = 0.2, boots=100, para=TRUE)
+v <- diveRsity::divMigrate(infile=c, outfile=NULL, stat="Nm",plot_network=TRUE, filter_threshold = 0.2, boots=100, para=FALSE) #changed stat=d to stat=Nm for raw unnormalised geneflow, 
+
+v2 <- diveRsity::divMigrateOnline(infile=c, nbs = 100, stat="Nm", para = FALSE, true.nm = TRUE)
 
 # Save a single object to a file
-saveRDS(v, "/Users/abhishek/honours/petaurus/outputs/d_m_100_reps.rds")
+saveRDS(v, "/Users/abhishek/honours/petaurus/outputs/nm_m_100_reps.rds")
 # Restore it under a different name
-v <- readRDS("/Users/abhishek/honours/petaurus/outputs/d_m_100_reps.rds")
+v <- readRDS("/Users/abhishek/honours/petaurus/outputs/nm_m_100_reps.rds")
 
-d_mig <- v$dRelMig #v$gRelMig
+d_mig <- v$nmRelMig #v$gRelMig, changed to nmRelMig now
 
 # from is rows, to is columns
 colnames(d_mig) <- unique(dms$meta$analyses[,"population"])
@@ -427,7 +429,7 @@ rownames(d_mig) <- unique(dms$meta$analyses[,"population"])
 
 # Filter by significance -- significance is if there is a significant difference in the directions
 # Test for overlap of the estimated 95% confidence intervals. Where there is no overlap, the directional gene flow components are said to be significantly different (asymmetric).
-mig_sig <- v$dRelMigSig #v$gRelMigSig
+mig_sig <- v$nmRelMigSig #v$gRelMigSig
 colnames(mig_sig) <- unique(dms$meta$analyses[,"population"])
 rownames(mig_sig) <- unique(dms$meta$analyses[,"population"])
 
@@ -476,15 +478,25 @@ ozmaps::abs_ste -> australia_map
 
 xlims <- c(112, 155)
 ylims <- c(-10, -43)
-
+library(sf)
 # simplify the australia outline
-australia_map_simplified <- st_simplify(australia_map, dTolerance = 5000)
+australia_map_simplified <- st_simplify(australia_map, dTolerance = 2000) #was 5000
 
 # crop both astralia map and the GPKG data using the defined bounding box (limits)
 bbox <- st_bbox(c(xmin = xlims[1], xmax = xlims[2], ymin = ylims[1], ymax = ylims[2]), crs = st_crs(australia_map_simplified))
 australia_map_simplified <- st_crop(australia_map_simplified, bbox)
 
-library(sf)
+
+#group colours in plot by species rather than individual populations (for figure)
+v2_meta_agg <- meta_agg |>
+  separate_wider_delim(
+    cols = population,
+    delim = "_",
+    names = c(NA, "species"),
+    cols_remove = FALSE
+  )
+
+
 gst_no_map <- ggplot() + coord_cartesian() + coord_fixed() +
   theme_few() +
   geom_curve(data = long_mig[long_mig$m > 0.2, ], #
@@ -495,36 +507,38 @@ gst_no_map <- ggplot() + coord_cartesian() + coord_fixed() +
   scale_color_gradient(low = "white", high = "red") + # midpoint = 0.5, mid = "blue",
   geom_sf(data = australia_map_simplified, fill = "transparent", color = "black", linewidth = 0.4) +
   coord_sf(xlim = c(140, 154), ylim = c(-38, -27)) + 
-  geom_point(data = meta_agg, mapping = aes(x = long, y = lat, fill = population), shape = 21, colour = "black") +
+  geom_point(data = v2_meta_agg, mapping = aes(x = long, y = lat, fill = species), shape = 21, colour = "black") +
   # xlim(lims[1], lims[2]) +
   # ylim(lims[3], lims[4]) +
-  labs(x = "Longitude", y = "Latitude", colour = "Migration (m)") + guides(size = "none", alpha = "none") +
+  labs(x = "Longitude", y = "Latitude", colour = "Migration (m)", fill = "Species") + guides(size = "none", alpha = "none") +
+  scale_fill_discrete(labels = c("breviceps" = expression(italic("P. breviceps")),
+                                 "norfolcensis" = expression(italic("P. norfolcensis")),
+                                 "notatus" = expression(italic("P. notatus")))) +
   # guides(colour = guide_legend(position = "right"), fill = guide_legend(position = "bottom"))
-  theme(legend.position = "bottom")
+  theme(legend.position = "right")
   # ggrepel::geom_label_repel(data = m2, aes(x = long, y = lat, label = population),
-  #                           min.segment.length = 0.25, color = "black", fill = "white", size = 3,
+  #                         min.segment.length = 0.25, color = "black", fill = "white", size = 3,
   #                           segment.colour = "white", alpha = 0.9, label.size = 0, nudge_y = 0.003) +
   # theme(legend.position = "bottom")
 
 
 gst_no_map
 
-ggsave("petaurus/outputs/petaurus_divmigrate_plot_pops.png",
-       gst_no_map, width = 35, height = 25,
+ggsave("petaurus/outputs/petaurus_divmigrate_plot_species.png",
+       gst_no_map, width = 20, height = 15,
        units = "cm", dpi = 300, bg = 'white')
 
 #### DAPC ####
 # Find optimal clusters for up to k = 20
-grp <- find.clusters(gen_d5, max.n.clust = 20) # retained 90 PCs
+grp <- find.clusters(gen_d5, max.n.clust = 20) # retained 15 PCs
                                                # chose k=3 clusters 
 
 # table(pop(gen_d5), grp$grp)
 
 # Run the DAPC 
-dapc1 <- dapc(gen_d5, grp$grp) #retained 10 PCs, 2 discriminant functions 
-dapc2 <- dapc(gen_d5, grp$grp) #retained 150 PCs, 2 discriminant functions
-dapc3 <- dapc(gen_d5, grp$grp) #retained 200 PCs, 2 discriminant functions 
-dapc4 <- dapc(gen_d5, grp$grp) #retained 250 PCs, 2 discriminant functions
+dapc1 <- dapc(gen_d5, grp$grp) #retained 15 PCs, 2 discriminant functions 
+
+dapc2 <- dapc(gen_d5, grp$grp) #retained 90 PCs, 2 discriminant functions
 
 dapc1
 dapc2
@@ -549,7 +563,26 @@ custom_colours <- adegenet::seasun(nlevels(pop_data))
 
 # Plot
 scatter(dapc1, grp = pop_data, posi.da = "topright")
-scatter(dapc2, grp = pop_data, posi.da = "bottomleft")
+scatter(dapc2, grp = pop_data, posi.da = "topright")
+
+# Set up the PNG device
+png('petaurus/outputs/petaurus_dapc_15pc.png', width = 35, height = 25, units = 'cm', res = 300)
+
+# Draw the plot
+scatter(dapc1, grp = pop_data, posi.da = "topright")
+
+# Turn off the PNG device
+dev.off()
+
+# Set up the PNG device
+png('petaurus/outputs/petaurus_dapc_90pc.png', width = 35, height = 25, units = 'cm', res = 300)
+
+# Draw the plot
+scatter(dapc2, grp = pop_data, posi.da = "topright")
+
+# Turn off the PNG device
+dev.off()
+
 
 #### AMOVA ####
 library(poppr)
@@ -584,7 +617,21 @@ stats_0.3 <- fastDiversity::faststats(gt = dms_no_clones$gt, # diversity stats
                                       # boots = 1000, 
                                       max_missingness = 0.3, maf=0.05)
 
-write.xlsx(stats_0.3, paste0(species,'/outputs/petaurus_stats.xlsx'))
+write.xlsx(stats_0.3, paste0(species,'/outputs/petaurus_stats_pcapops.xlsx'))
+
+stats_0.3_v2 <- fastDiversity::faststats(gt = dms_no_clones$gt, # diversity stats
+                                      genetic_group_variable = dms_no_clones$meta$analyses[,'sp'],
+                                      site_variable = dms_no_clones$meta$analyses[,'sp'], 
+                                      # run_HWE_test = TRUE, 
+                                      # get_CI_loci_resampling = TRUE,
+                                      # loci_resample_n = 1000, 
+                                      # boots = 1000, 
+                                      max_missingness = 0.3, maf=0.05)
+
+write.xlsx(stats_0.3_v2, paste0(species,'/outputs/petaurus_stats_species.xlsx'))
+
+
+
 
 # the individual observed heterozygosity
 m2$ind_ho <- fastDiversity::individual_Ho(dms$gt, 
@@ -665,7 +712,7 @@ splitstree_plot <- ggplot(Nnet, aes(x = x, y = y)) +
   scale_fill_manual(values = sp_colours, na.translate = FALSE, guide = "none") +    
   scale_colour_manual(values = sp_colours, na.translate = FALSE) +    
   scale_shape_manual(values = sp_shapes) +            
-  geom_tiplab2(size = 2, hjust = -0.15, fontface = "italic", lineheight = 0.8) + #angle = 0, 
+  # geom_tiplab2(size = 2, hjust = -0.15, fontface = "italic", lineheight = 0.8) + #angle = 0, 
   theme_void() +
   expand_limits(x = c(min(x_tips$x) - 0.2 * net_x_axis, max(x_tips$x) + 0.3 * net_x_axis),
                 y = c(min(x_tips$y) - 0.1 * net_y_axis, max(x_tips$y) + 0.1 * net_y_axis)) +
@@ -742,30 +789,30 @@ ggsave(paste0(species,'/outputs/petaurus_splitstree_missing.pdf'),
 
 # dms_no_clones <- dms #TEMPORARY!!! until you do kinship
 
-site_df <- dms_no_clones$meta$analyses[,'population'] %>% as.data.frame() #changed from site to pop
+site_df <- dms_no_clones$meta$analyses[,'site'] %>% as.data.frame() #changed from site to population, site =                                                                            original, pca = population 
 site_df[site_df==0] <- NA
 
 sitepop_freq <- as.data.frame(table(site_df))
 not_n1_sites <- as.vector(sitepop_freq[sitepop_freq$Freq < 3, 1])
-keep_samples <- dms_no_clones$sample_names[which(dms_no_clones$meta$analyses[,'population'] %in% sitepop_freq[sitepop_freq$Freq >= 3, 1])]
+keep_samples <- dms_no_clones$sample_names[which(dms_no_clones$meta$analyses[,'site'] %in% sitepop_freq[sitepop_freq$Freq >= 3, 1])]
 
 fst_dms <- remove.by.list(dms_no_clones, keep_samples)
 
 length(fst_dms$sample_names)
-table(fst_dms$meta$population)
+table(fst_dms$meta$site)
 
 
 # Check filtered data
 print("After filtering sites with n < 2:")
 print(length(fst_dms$sample_names))
-print(table(fst_dms$meta$analyses[,'population']))
+print(table(fst_dms$meta$analyses[,'site']))
 
 # Calculate FST and geographic distance
 gds_file <- dart2gds(fst_dms, basedir, species, dataset)
-pFst <- population.pw.Fst(fst_dms, fst_dms$meta$analyses[,'population'], basedir, species, dataset,
+pFst <- population.pw.Fst(fst_dms, fst_dms$meta$analyses[,'site'], basedir, species, dataset,
                           maf_val=0.05, miss_val=0.3)
 
-pS <- population.pw.spatial.dist(fst_dms, fst_dms$meta$analyses[,'population'])
+pS <- population.pw.spatial.dist(fst_dms, fst_dms$meta$analyses[,'site'])
 
 # Make self comparisons NA
 diag(pFst$Fst) <- NA
@@ -775,7 +822,7 @@ diag(pS$S) <- NA
 
 meta_agg_df <- data.frame(lat = fst_dms$meta$lat, 
                           long = fst_dms$meta$long,
-                          pop = fst_dms$meta$analyses[,"population"],
+                          pop = fst_dms$meta$analyses[,"site"],
                           sp = fst_dms$meta$analyses[,"sp"])
 meta_agg <- meta_agg_df %>%
   group_by(sp, pop) %>%
@@ -818,8 +865,8 @@ fstp1 <- ggplot(Fst_sig2, aes(x = Geo_dist2, y = Fst, colour = sp_comparison)) +
 # Display and save plot
 print(fstp1)
 
-ggsave("petaurus/outputs/petaurus_fst_mantel_pcapops.png", 
-       fstp1, width = 25, height = 20, units = "cm", dpi = 600)
+ggsave("petaurus/outputs/petaurus_fst_mantel_pcapops_v2.png", 
+       fstp1, width = 20, height = 15, units = "cm", dpi = 600)
 
 ##### FST HEATMAP ####
 # Print Mantel result
@@ -852,7 +899,7 @@ palette <- colorRamp2(c(0, max(geo_d/1000, na.rm = TRUE)), c("white", "#80B1D3")
 
 # Define species colors (replace named_list_maker if needed)
 row_ann <- rowAnnotation(Group = mat_dist$sp,
-                         col=list(Group=sp_colours),  show_legend = FALSE,
+                         col=list(Group=sp_colours),  show_legend = TRUE,
                          na_col="white",
                          annotation_legend_param = list(labels_gp=gpar(fontface="italic",fontsize=8),
                                                         title_gp=gpar(fontsize=10)),
@@ -860,7 +907,7 @@ row_ann <- rowAnnotation(Group = mat_dist$sp,
                          annotation_name_side="top")
 
 col_ann <- HeatmapAnnotation(Group = mat_dist$sp, 
-                             col = list(Group = sp_colours),  show_legend = FALSE,
+                             col = list(Group = sp_colours),  show_legend = TRUE,
                              annotation_name_gp = gpar(fontsize = 0),
                              annotation_legend_param = list(labels_gp=gpar(fontface="italic", fontsize=8),
                                                             title_gp=gpar(fontsize=10)),
@@ -875,7 +922,9 @@ geo <- Heatmap(as.matrix(mat_dist[,1:nrow(mat_dist)]),
                height = nrow(mat_dist) * unit(6, "mm"),
                col = palette,
                na_col = "white",
-               column_names_gp = gpar(fontsize = 8),
+               # column_names_gp = gpar(fontsize = 8),
+               show_column_names = FALSE,
+               show_row_names = FALSE,
                cluster_rows = FALSE,
                cluster_columns = FALSE,
                name = "Distance (km)",
@@ -898,8 +947,10 @@ gene <- Heatmap(as.matrix(mat_fst),
                 height = nrow(mat_fst) * unit(6, "mm"),
                 col = gene_col,
                 na_col = "grey",
-                row_names_gp = gpar(fontsize = 8),
-                column_names_gp = gpar(fontsize = 0),
+                # row_names_gp = gpar(fontsize = 8),
+                # column_names_gp = gpar(fontsize = 0),
+                show_column_names = FALSE,
+                show_row_names = FALSE,
                 border_gp = gpar(col = "black", lty = 1),
                 name = "FST",
                 cluster_rows = FALSE,
@@ -918,10 +969,11 @@ gene
 gene_width <- nrow(mat_fst) * unit(6, "mm")
 draw(geo + gene, ht_gap = -gene_width, merge_legend=TRUE)
 
+
 # Set the file name and parameters
-filename <- "petaurus/outputs/petaurus_fst_pcapops.png" 
-width <- 24
-height <- 20
+filename <- "petaurus/outputs/petaurus_fst_dbscan_edited.png" 
+width <- 25
+height <-25
 dpi <- 600
 units <- "cm"
 
@@ -1040,9 +1092,10 @@ plot_admix <- ggplot(admix_P2, aes(x = sample, y = Q, fill = factor(population))
     space = "free_x"
   ) +
   theme(
-    axis.text.x = element_text(size=5, angle=90, vjust=0.5),
+    # axis.text.x = element_text(size=5, angle=90, vjust=0.5),
+    axis.text.x = element_blank(),
     axis.title.x = element_blank(),
-    strip.text.x = element_text(angle=90, face='italic', hjust=0.01, size=10),
+    strip.text.x = element_text(angle=0, face='italic', hjust=0.5, size=10),
     strip.background = element_blank(),
     panel.spacing = unit(0.07, "lines"),
     legend.position = "none",
@@ -1112,6 +1165,62 @@ plate_table["1"]
 plate_table["2"]
 plate_table["3"]
 
+#### Multipanel Figures ####
+# PCA and Admixture 
+pca_split <- ggarrange(pca_plot1, splitstree_plot,
+                       labels = "AUTO", 
+                       font.label = list(face = "plain"),
+                       common.legend = TRUE,
+                       legend = "bottom", ncol = 2, nrow = 1)
+
+pca_split_admix <- ggarrange(pca_split, plot_admix,
+                            labels = c("A", "C"), 
+                            font.label = list(face = "plain"),
+                            ncol = 1, nrow = 2)
+
+pca_split_admix
+
+ggsave("petaurus/outputs/pca_split_admix.png", 
+       pca_split_admix, width = 25, height = 20,
+       units = "cm", dpi = 300, bg = 'white')
+
+singlespecies_admix <- ggarrange(admix_bre_k2, admix_nor_k2, admix_not_k2, admix_not_k3,
+                                 labels = "AUTO",
+                                 font.label = list(face = "plain"),
+                                 ncol = 2, nrow = 2)
+singlespecies_admix
+
+ggsave("petaurus/outputs/single_species_admix.png",
+       singlespecies_admix, width = 25, height = 20,
+       units = "cm", dpi = 300, bg = "white")
+
+# dapc_pic <- readPNG("petaurus/outputs/petaurus_dapc_15pc.png")
+# dapc_img <- ggplot() + 
+#   background_image(dapc_pic) +
+#   theme_void()
+# dapc_img
+# 
+# dapc_admix <- ggarrange(dapc_img, plot_admix,
+#                         labels = "AUTO",
+#                         font.label = list(face = "plain"),
+#                         ncol = 2)
+# 
+# combined_panel_1 <- ggarrange(pca_split, dapc_admix, 
+#                               labels = "AUTO",
+#                               font.label = list(face = "plain"),
+#                               ncol = 1, nrow = 2)
+# combined_panel_1
+# mantel_list <- geo + gene
+# mantel_heatmap <- grid.grabExpr(draw(mantel_list, newpage = FALSE))
+# 
+# plot_grid(mantel_heatmap, fstp1, ncol = 2, labels = c("A", "B"))
+# mantel_panel
+# 
+# mantel_panel <- ggarrange(mantel_heatmap, fstp1, 
+#                           labels = "AUTO", 
+#                           font.label = list(Face = "plain"), 
+#                           ncol = 1, nrow = 2)
+# mantel_panel
 
 
 

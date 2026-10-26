@@ -256,29 +256,29 @@ g_pca_df2$lat<- as.numeric(g_pca_df2$lat)
 
 # Common PCA plot elements
 base_pca_plot <- function(data, x, y, xlabel, ylabel) {
-  ggplot(data, aes_string(x = x, y = y, colour = "lat", shape = "sp")) +
+  ggplot(data, aes_string(x = x, y = y, colour = "lat")) +
     geom_vline(xintercept = 0, alpha = 0.2) +
     geom_hline(yintercept = 0, alpha = 0.2) +
     geom_point(size = 1.5) +
     xlab(xlabel) + ylab(ylabel) +
     theme_few() +
     theme(
-      legend.key.size = unit(0, 'lines'),
+      # legend.key.size = unit(0, 'lines'),
       legend.position = "right",
       legend.text = element_text(face = "italic"),
       axis.title = element_text(size = 10),
       axis.text = element_text(size = 8)
     ) +
     # scale_colour_manual(values = sp_colours) +
-    scale_shape_manual(values = sp_shapes) + 
-    scale_colour_gradient(low="blue", high="red", name = "Latitude")
+    # scale_shape_manual(values = sp_shapes) + 
+    scale_colour_gradient(low="lightblue", high="darkblue", name = "Latitude", guide = "colourbar")
 }
 
 # PCA Plot 1: PC1 vs PC2 (with convex hull)
 pca_plot1 <- base_pca_plot(g_pca_df2, "PC1", "PC2", pcnames[1], pcnames[2]) +
   guides(
-    colour = guide_legend(title.position = "left", ncol = 3),
-    shape = guide_legend(title.position = "left", ncol = 3)
+    colour = guide_colourbar(title.position = "top", direction = "vertical")
+    # shape = guide_legend(title.position = "left", ncol = 3)
   ) 
 # PCA Plot 2: PC3 vs PC4
 pca_plot2 <- base_pca_plot(g_pca_df2, "PC3", "PC4", pcnames[3], pcnames[4]) +
@@ -300,6 +300,9 @@ print(all3_pca_plots)
 
 ggsave("petaurus/outputs/norfolcensis/petaurus_norfolcensis_pca.png",
        all3_pca_plots, width = 22, height = 10,
+       units = "cm", dpi = 300, bg = 'white')
+ggsave("petaurus/outputs/norfolcensis/petaurus_norfolcensis_pca_lat.png",
+       pca_plot1, width = 15, height = 15,
        units = "cm", dpi = 300, bg = 'white')
 
 
@@ -821,9 +824,11 @@ plot_admix <- ggplot(admix_P3, aes(x = sample, y = Q, fill = factor(population))
     space = "free_x"
   ) +
   theme(
-    axis.text.x = element_text(size=5, angle=90, vjust=0.5),
+    # axis.text.x = element_text(size=5, angle=90, vjust=0.5),
+    axis.text.x = element_blank(),
     axis.title.x = element_blank(),
-    strip.text.x = element_text(angle=90, face='italic', hjust=0.01, size=10),
+    # strip.text.x = element_text(angle=0, face='italic', hjust=0.5, size=10),
+    strip.text.x = element_blank(),
     strip.background = element_blank(),
     panel.spacing = unit(0.07, "lines"),
     legend.position = "none",
@@ -834,6 +839,12 @@ plot_admix <- ggplot(admix_P3, aes(x = sample, y = Q, fill = factor(population))
 # scale_fill_manual(values = admix_colours)
 
 plot_admix
+
+admix_nor_k2 <- plot_admix
+
+ggsave(paste0(species,'/outputs/norfolcensis/petaurus_norfolcensis_plot_admix_ordered_k2.png'), 
+       plot_admix, width=40, height=30, units='cm', dpi=600)
+
 ggsave(paste0(species,'/outputs/norfolcensis/petaurus_norfolcensis_plot_admix_ordered_k2.pdf'), 
        plot_admix, width=40, height=30, units='cm', dpi=300)
 
