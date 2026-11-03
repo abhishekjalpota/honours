@@ -158,6 +158,7 @@ clones_dereplicated <- c(non_clones, approved_clones) # list of sample to keep
 # remove clones from dms
 dms_no_clones <- remove.by.list(dms, clones_dereplicated)
 
+length(dms_no_clones$locus_names)
 ##### KINSHIP HEATMAP ####
 
 col_fun <- colorRamp2(c(0,0.45,0.5), c("grey95", "red",'black'))
@@ -823,6 +824,7 @@ plot_admix <- ggplot(admix_P3, aes(x = sample, y = Q, fill = factor(population))
     scales = "free_x",
     space = "free_x"
   ) +
+  scale_fill_manual(values = c("1" = "thistle2", "2" = "steelblue"))+
   theme(
     # axis.text.x = element_text(size=5, angle=90, vjust=0.5),
     axis.text.x = element_blank(),

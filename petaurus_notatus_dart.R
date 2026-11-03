@@ -158,6 +158,7 @@ clones_dereplicated <- c(non_clones, approved_clones) # list of sample to keep
 # remove clones from dms
 dms_no_clones <- remove.by.list(dms, clones_dereplicated)
 
+length(dms_no_clones$locus_names)
 ##### KINSHIP HEATMAP ####
 
 col_fun <- colorRamp2(c(0,0.45,0.5), c("grey95", "red",'black'))
@@ -770,10 +771,10 @@ cv_plot
 # ancestry prediction for all individuals 
 # adjust files below for each k value
 
-q_file <- "/Users/abhishek/honours/petaurus/outputs/notatus/petaurusnotatus_DPetas26-11610_bed.2.Q"
+q_file <- "/Users/abhishek/honours/petaurus/outputs/notatus/petaurusnotatus_DPetas26-11610_bed.3.Q"
 fam_file <- "/Users/abhishek/honours/petaurus/outputs/notatus/petaurusnotatus_DPetas26-11610_bed.fam"
 
-opt_k <-2   # set K value here
+opt_k <-3   # set K value here
 
 admix_P <- read.table(q_file)
 admix_fam <- read.table(fam_file, sep = "\t")
@@ -829,6 +830,7 @@ plot_admix <- ggplot(admix_P3, aes(x = sample, y = Q, fill = factor(population))
     scales = "free_x",
     space = "free_x"
   ) +
+  scale_fill_manual(values = c("1" = "thistle2", "3" = "slateblue3", "2" = "cadetblue3"))+
   theme(
     # axis.text.x = element_text(size=5, angle=90, vjust=0.5),
     axis.text.x = element_blank(),
@@ -846,8 +848,8 @@ plot_admix <- ggplot(admix_P3, aes(x = sample, y = Q, fill = factor(population))
 
 plot_admix
 
-admix_not_k2 <- plot_admix
-# admix_not_k3 <- plot_admix
+# admix_not_k2 <- plot_admix
+admix_not_k3 <- plot_admix
 
 
 ggsave(paste0(species,'/outputs/notatus/petaurus_notatus_plot_admix_ordered_k2.png'), 

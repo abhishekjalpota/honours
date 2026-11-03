@@ -1,4 +1,5 @@
 # ADMIXTURE populations within species plotted geographically
+# Potential biogeographical barriers also visualised
 
 # load necessary libraries
 library(sf)
@@ -28,13 +29,13 @@ xlims <- c(112, 155)
 ylims <- c(-10, -43)
 
 # simplify the australia outline
-australia_map_simplified <- st_simplify(australia_map, dTolerance = 5000)
+australia_map_simplified <- st_simplify(australia_map, dTolerance = 2000)
 
 # crop both astralia map and the GPKG data using the defined bounding box (limits)
 bbox <- st_bbox(c(xmin = xlims[1], xmax = xlims[2], ymin = ylims[1], ymax = ylims[2]), crs = st_crs(australia_map_simplified))
 australia_map_simplified <- st_crop(australia_map_simplified, bbox)
  
-
+#Macleay
 # import the GPKG shapefile
 gpkg_data_mac <- st_read("/Users/abhishek/Desktop/macleay.gpkg")
 
@@ -43,6 +44,16 @@ gpkg_data_mac <- st_transform(gpkg_data_mac, st_crs(australia_map_simplified))
 
 # # crop the GPKG data by the australia map
 cropped_data_mac <- st_intersection(gpkg_data_mac, australia_map_simplified)
+
+#Clarence
+# import the GPKG shapefile
+gpkg_data_clar <- st_read("/Users/abhishek/Desktop/clarence_shapefile.gpkg")
+
+# ensure both datasets are in the same coordinate reference system
+gpkg_data_clar <- st_transform(gpkg_data_clar, st_crs(australia_map_simplified))
+
+# # crop the GPKG data by the australia map
+cropped_data_clar <- st_intersection(gpkg_data_clar, australia_map_simplified)
 
 
 # # calculate centroids of each state
@@ -68,11 +79,12 @@ names(sp_colours) <- unique(record_data$admix_pop_k2)
 # norfolcensis map
 nor_admix_map <- ggplot() +
   geom_sf(data = cropped_data_mac, fill = "green", color = "transparent", alpha = 0.2) +
+  geom_sf(data = cropped_data_clar, fill = "purple", color = "transparent", alpha = 0.2) +
   geom_sf(data = australia_map_simplified, fill = "transparent", color = "black", linewidth = 0.4) +
   geom_point(data = record_data_nor, mapping = aes(x = long, y = lat, fill = factor(admix_pop_k2)), size=1,
              shape=21, stroke=0.2) +
   
-  coord_sf(xlim = c(140, 154), ylim = c(-40, -27)) +  #for zoomed map, delete for full map
+  coord_sf(xlim = c(140, 154), ylim = c(-39, -27)) +  #for zoomed map, delete for full map
   
   scale_fill_manual(values=sp_colours, na.value = 'transparent') +
   
@@ -83,7 +95,7 @@ nor_admix_map <- ggplot() +
   #           size = 3.5, color = "black", fontface = "bold") +
   theme_void() +
   theme(
-    legend.position = "bottom",
+    legend.position = "none",
     legend.text = element_text(face = "italic"),
     legend.key.size = unit(0.5, "lines"),
     legend.spacing.y = unit(0.1, "lines"),
@@ -103,16 +115,17 @@ nor_admix_map <- ggplot() +
 
 nor_admix_map
 
-ggsave('/Users/abhishek/honours/petaurus/outputs/norfolcensis/norfolcensis_admix_map.png', nor_admix_map, width=15, height=15, units='cm',bg='white', dpi = 400)
+ggsave('/Users/abhishek/honours/petaurus/outputs/norfolcensis/norfolcensis_admix_mapv2.png', nor_admix_map, width=15, height=15, units='cm',bg='white', dpi = 400)
 
 # notatus map 
 not_admix_map <- ggplot() +
   geom_sf(data = cropped_data_mac, fill = "green", color = "transparent", alpha = 0.2) +
+  geom_sf(data = cropped_data_clar, fill = "purple", color = "transparent", alpha = 0.2) +
   geom_sf(data = australia_map_simplified, fill = "transparent", color = "black", linewidth = 0.4) +
   geom_point(data = record_data_not, mapping = aes(x = long, y = lat, fill = factor(admix_pop_k2)), size=1,
              shape=21, stroke=0.2) +
   
-  coord_sf(xlim = c(140, 154), ylim = c(-40, -27)) +  #for zoomed map, delete for full map
+  coord_sf(xlim = c(140, 154), ylim = c(-39, -27)) +  #for zoomed map, delete for full map
   
   scale_fill_manual(values=sp_colours, na.value = 'transparent') +
   
@@ -123,7 +136,7 @@ not_admix_map <- ggplot() +
   #           size = 3.5, color = "black", fontface = "bold") +
   theme_void() +
   theme( 
-    legend.position = "bottom",
+    legend.position = "none",
     legend.text = element_text(face = "italic"),
     legend.key.size = unit(0.5, "lines"),
     legend.spacing.y = unit(0.1, "lines"),
@@ -143,16 +156,17 @@ not_admix_map <- ggplot() +
 
 not_admix_map
 
-ggsave('/Users/abhishek/honours/petaurus/outputs/notatus/notatus_admix_map.png', not_admix_map, width=15, height=15, units='cm',bg='white', dpi = 400)
+ggsave('/Users/abhishek/honours/petaurus/outputs/notatus/notatus_admix_mapv2.png', not_admix_map, width=15, height=15, units='cm',bg='white', dpi = 400)
 
 # breviceps map
 bre_admix_map <- ggplot() +
   geom_sf(data = cropped_data_mac, fill = "green", color = "transparent", alpha = 0.2) +
+  geom_sf(data = cropped_data_clar, fill = "purple", color = "transparent", alpha = 0.2) +
   geom_sf(data = australia_map_simplified, fill = "transparent", color = "black", linewidth = 0.4) +
   geom_point(data = record_data_bre, mapping = aes(x = long, y = lat, fill = factor(admix_pop_k2)), size=1,
              shape=21, stroke=0.2) +
   
-  coord_sf(xlim = c(140, 154), ylim = c(-40, -27)) +  #for zoomed map, delete for full map
+  coord_sf(xlim = c(140, 154), ylim = c(-39, -27)) +  #for zoomed map, delete for full map
   
   scale_fill_manual(values=sp_colours, na.value = 'transparent') +
   
@@ -163,7 +177,7 @@ bre_admix_map <- ggplot() +
   #           size = 3.5, color = "black", fontface = "bold") +
   theme_void() +
   theme(
-    legend.position = "bottom",
+    legend.position = "none",
     legend.text = element_text(face = "italic"),
     legend.key.size = unit(0.5, "lines"),
     legend.spacing.y = unit(0.1, "lines"),
@@ -183,5 +197,16 @@ bre_admix_map <- ggplot() +
 
 bre_admix_map
 
-ggsave('/Users/abhishek/honours/petaurus/outputs/breviceps/breviceps_admix_map.png', bre_admix_map, width=15, height=15, units='cm',bg='white', dpi = 400)
+ggsave('/Users/abhishek/honours/petaurus/outputs/breviceps/breviceps_admix_mapv2.png', bre_admix_map, width=15, height=15, units='cm',bg='white', dpi = 400)
 
+admix_maps_combined <- ggarrange(bre_admix_map, nor_admix_map,
+                                 labels = "AUTO",
+                                 font.label = list(face = "plain"),
+                                 ncol = 2, nrow = 1,
+                                 vjust = 6,
+                                 hjust = -0.5)
+admix_maps_combined
+
+ggsave("petaurus/outputs/admix_map_panel.png", 
+       admix_maps_combined, width = 25, height = 15,
+       units = "cm", dpi = 300, bg = 'white')

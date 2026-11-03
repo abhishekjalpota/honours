@@ -276,8 +276,9 @@ base_pca_plot <- function(data, x, y, xlabel, ylabel) {
       axis.title = element_text(size = 10),
       axis.text = element_text(size = 8)
     ) +
-    scale_colour_manual(values = sp_colours) +
-    scale_shape_manual(values = sp_shapes)
+    scale_colour_manual(values = c("breviceps" = "firebrick2", "norfolcensis" = "lightskyblue", "notatus" = "seagreen3")) + #changed from sp_colours
+    scale_shape_manual(values = sp_shapes) + 
+    labs(colour = "Species", shape = "Species")
 }
 
 # PCA Plot 1: PC1 vs PC2 (with convex hull)
@@ -331,25 +332,6 @@ all(indNames(gen_d5) == testing2$sample)
 # Assign populations to genlight 
 pop(gen_d5) <- factor(testing2$pca_pops)
 
-# Convert to BA3-SNPs format 
-library(dartR.base)
-
-gl2bayesAss(x = gen_d5, outfile = "petaurus_bayesass.txt", 
-            outpath = "/Users/abhishek/honours/petaurus/outputs/")
-
-# Convert to genepop for divMigrate
-gl2genepop(x = gen_d5, verbose = 3, outfile = "petaurus_genepop.gen", 
-           outpath = getwd())
-
-# Calculate relative migration 
-migration_rates <- divMigrate(
-  infile = "petaurus_genepop.gen", 
-  stat = "d", #Jost's D 
-  boots = 100, 
-  filter_threshold = 0.3, 
-  plot_network = TRUE, 
-  para = TRUE #not sure about this
-)
 
 ################# Migration and FST ###################
 
@@ -419,7 +401,7 @@ v2 <- diveRsity::divMigrateOnline(infile=c, nbs = 100, stat="Nm", para = FALSE, 
 # Save a single object to a file
 saveRDS(v, "/Users/abhishek/honours/petaurus/outputs/nm_m_100_reps.rds")
 # Restore it under a different name
-v <- readRDS("/Users/abhishek/honours/petaurus/outputs/nm_m_100_reps.rds")
+v <- readRDS("/Users/abhishek/honours/petaurus/outputs/d_m_100_reps.rds")
 
 d_mig <- v$nmRelMig #v$gRelMig, changed to nmRelMig now
 
@@ -709,16 +691,18 @@ splitstree_plot <- ggplot(Nnet, aes(x = x, y = y)) +
              aes(fill = sp), color = 'transparent') +
   geom_splitnet(layout = "slanted", size = 0.2) +
   geom_point(data = x_tips, aes(x = x, y = y, colour = sp, shape = sp), size = 1) + #or sp_original
-  scale_fill_manual(values = sp_colours, na.translate = FALSE, guide = "none") +    
-  scale_colour_manual(values = sp_colours, na.translate = FALSE) +    
+  scale_fill_manual(values = c("breviceps" = "firebrick2", "norfolcensis" = "lightskyblue", "notatus" = "seagreen3"), na.translate = FALSE, guide = "none") +    
+  scale_colour_manual(values = c("breviceps" = "firebrick2", "norfolcensis" = "lightskyblue", "notatus" = "seagreen3"), na.translate = FALSE) +    
   scale_shape_manual(values = sp_shapes) +            
   # geom_tiplab2(size = 2, hjust = -0.15, fontface = "italic", lineheight = 0.8) + #angle = 0, 
+  labs(colour = "Species", shape = "Species") + 
   theme_void() +
   expand_limits(x = c(min(x_tips$x) - 0.2 * net_x_axis, max(x_tips$x) + 0.3 * net_x_axis),
                 y = c(min(x_tips$y) - 0.1 * net_y_axis, max(x_tips$y) + 0.1 * net_y_axis)) +
   theme(
     legend.text = element_text(face = "plain"),
-    legend.key.size = unit(0, 'lines')
+    legend.key.size = unit(0, 'lines'),
+    plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")
   ) +
   coord_fixed()
 
@@ -799,8 +783,8 @@ keep_samples <- dms_no_clones$sample_names[which(dms_no_clones$meta$analyses[,'s
 fst_dms <- remove.by.list(dms_no_clones, keep_samples)
 
 length(fst_dms$sample_names)
+length(fst_dms$locus_names)
 table(fst_dms$meta$site)
-
 
 # Check filtered data
 print("After filtering sites with n < 2:")
@@ -852,7 +836,7 @@ Fst_colours <- c("darkorchid2", "navyblue", "cornflowerblue", "aquamarine2", "ch
 
 # Mantel plot
 fstp1 <- ggplot(Fst_sig2, aes(x = Geo_dist2, y = Fst, colour = sp_comparison)) +
-  geom_point(size = 1, alpha = 0.4) +
+  geom_point(size = 2, alpha = 0.4) +
   labs(x = "Distance (km)", y = "FST", colour = "Species Comparison") +
   scale_colour_manual(values = Fst_colours) +
   theme_bw() +
@@ -865,7 +849,7 @@ fstp1 <- ggplot(Fst_sig2, aes(x = Geo_dist2, y = Fst, colour = sp_comparison)) +
 # Display and save plot
 print(fstp1)
 
-ggsave("petaurus/outputs/petaurus_fst_mantel_pcapops_v2.png", 
+ggsave("petaurus/outputs/petaurus_fst_mantel_dbscan_v2.png", 
        fstp1, width = 20, height = 15, units = "cm", dpi = 600)
 
 ##### FST HEATMAP ####
@@ -899,7 +883,7 @@ palette <- colorRamp2(c(0, max(geo_d/1000, na.rm = TRUE)), c("white", "#80B1D3")
 
 # Define species colors (replace named_list_maker if needed)
 row_ann <- rowAnnotation(Group = mat_dist$sp,
-                         col=list(Group=sp_colours),  show_legend = TRUE,
+                         col=list(Group=c("breviceps" = "firebrick2", "norfolcensis" = "lightskyblue", "notatus" = "seagreen3")),  show_legend = TRUE,
                          na_col="white",
                          annotation_legend_param = list(labels_gp=gpar(fontface="italic",fontsize=8),
                                                         title_gp=gpar(fontsize=10)),
@@ -907,7 +891,7 @@ row_ann <- rowAnnotation(Group = mat_dist$sp,
                          annotation_name_side="top")
 
 col_ann <- HeatmapAnnotation(Group = mat_dist$sp, 
-                             col = list(Group = sp_colours),  show_legend = TRUE,
+                             col = list(Group =c("breviceps" = "firebrick2", "norfolcensis" = "lightskyblue", "notatus" = "seagreen3")),  show_legend = TRUE,
                              annotation_name_gp = gpar(fontsize = 0),
                              annotation_legend_param = list(labels_gp=gpar(fontface="italic", fontsize=8),
                                                             title_gp=gpar(fontsize=10)),
@@ -971,7 +955,7 @@ draw(geo + gene, ht_gap = -gene_width, merge_legend=TRUE)
 
 
 # Set the file name and parameters
-filename <- "petaurus/outputs/petaurus_fst_dbscan_edited.png" 
+filename <- "petaurus/outputs/petaurus_fst_dbscan_v2.png" 
 width <- 25
 height <-25
 dpi <- 600
@@ -1091,6 +1075,7 @@ plot_admix <- ggplot(admix_P2, aes(x = sample, y = Q, fill = factor(population))
     scales = "free_x",
     space = "free_x"
   ) +
+  scale_fill_manual(values = c("2" = "firebrick2", "1" = "lightskyblue", "3" = "seagreen3"))+
   theme(
     # axis.text.x = element_text(size=5, angle=90, vjust=0.5),
     axis.text.x = element_blank(),
@@ -1125,6 +1110,8 @@ cols_idx <- which(
 )
 
 dms_raxml <- remove.snps.from.dart.data(dms_no_clones, snps_to_remove = cols_idx, input_as_names = FALSE)
+
+length(dms_raxml$locus_names)
 
 dart2svdquartets(dms_raxml, basedir, species, paste0(dataset,'_raxml'), add_pop=TRUE, pop=dms_raxml$sample_names)
 genotype_matrix <- read.nexus.data('petaurus/popgen/raw_SNPFilt_1SNPperClone/svdq/petaurus_DPetas26-11610_raxml.nex')
@@ -1168,7 +1155,9 @@ plate_table["3"]
 #### Multipanel Figures ####
 # PCA and Admixture 
 pca_split <- ggarrange(pca_plot1, splitstree_plot,
-                       labels = "AUTO", 
+                       labels = c("A", "B"), 
+                       label.x = c(0, 0.1),
+                       label.y = c(1,1),
                        font.label = list(face = "plain"),
                        common.legend = TRUE,
                        legend = "bottom", ncol = 2, nrow = 1)
@@ -1180,8 +1169,8 @@ pca_split_admix <- ggarrange(pca_split, plot_admix,
 
 pca_split_admix
 
-ggsave("petaurus/outputs/pca_split_admix.png", 
-       pca_split_admix, width = 25, height = 20,
+ggsave("petaurus/outputs/pca_split_admix_v2.png", 
+       pca_split_admix, width = 20, height = 16,
        units = "cm", dpi = 300, bg = 'white')
 
 singlespecies_admix <- ggarrange(admix_bre_k2, admix_nor_k2, admix_not_k2, admix_not_k3,
@@ -1190,7 +1179,7 @@ singlespecies_admix <- ggarrange(admix_bre_k2, admix_nor_k2, admix_not_k2, admix
                                  ncol = 2, nrow = 2)
 singlespecies_admix
 
-ggsave("petaurus/outputs/single_species_admix.png",
+ggsave("petaurus/outputs/single_species_admix_v2.png",
        singlespecies_admix, width = 25, height = 20,
        units = "cm", dpi = 300, bg = "white")
 
